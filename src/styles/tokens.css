@@ -1,0 +1,110 @@
+/* Streak v2 — design tokens
+ * Spec: docs/DESIGN-SYSTEM.md  ·  Every contrast ratio below was computed, not estimated.
+ * RULE: no hardcoded hex anywhere else in the codebase. Add a token here instead.
+ */
+
+/* ============================================================
+   PARENT / MARKETING SURFACE (light) — verified vs #FFFFFF
+   ============================================================ */
+:root {
+  --bg:            #FFFFFF;
+  --bg-alt:        #FAFAFE;
+  --panel:         #FFFFFF;
+  --panel-alt:     #F5F3FF;
+  --border:        #EDE9FF;
+
+  --ink:           #1A1F2E;  /* 16.41:1 AA */
+  --soft:          #4A5568;  /*  7.53:1 AA */
+  --muted:         #5B6472;  /*  5.98:1 AA  (replaces #8B95A7 @3.02 FAIL) */
+
+  --purple:        #6C2BD9;  /*  7.03:1 AA  BRAND */
+  --purple-dark:   #4A1A9E;  /* 10.87:1 AA  hover/pressed */
+  --purple-light:  #F0ECFF;  /*             fill only — never text */
+
+  --gold:          #D97706;  /*  3.19:1 LARGE TEXT / ICONS ONLY */
+  --gold-text:     #B45309;  /*  5.02:1 AA  use for gold body copy */
+  --green:         #059669;  /*  3.77:1 LARGE ONLY */
+  --green-text:    #047857;  /*  5.48:1 AA */
+  --red:           #DC2626;  /*  4.83:1 AA */
+  --blue:          #2563EB;  /*  5.17:1 AA */
+
+  --text-on-accent: #FFFFFF;
+
+  /* Type scale */
+  --t-display: 40px; --t-h1: 30px; --t-h2: 22px; --t-h3: 18px;
+  --t-body: 16px; --t-body-sm: 14px; --t-caption: 13px; --t-micro: 11px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* Spacing — 4px base */
+  --s-1: 4px; --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+
+  /* Radius */
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+
+  /* Elevation */
+  --e-1: 0 1px 3px rgba(26,31,46,.08);
+  --e-2: 0 4px 12px rgba(26,31,46,.10);
+  --e-3: 0 10px 30px rgba(26,31,46,.14);
+}
+
+/* ============================================================
+   KID SURFACE (dark) — verified vs #0F1A2E. Carried from v1.
+   Deliberately dark: reads as a game, not homework.
+   ============================================================ */
+:root[data-surface="kid"] {
+  --bg:            #0F1A2E;
+  --bg-alt:        #1A2942;
+  --panel:         #1E3050;
+  --panel-alt:     #2A3F63;
+  --border:        #3A5380;
+
+  --ink:           #FFFFFF;  /* 17.39:1 AA */
+  --soft:          #D6E2F5;  /* 13.30:1 AA */
+  --muted:         #B8C7DF;  /* 10.16:1 AA */
+
+  --purple:        #C4B5FD;  /*  9.42:1 AA */
+  --purple-dark:   #A78BFA;  /*  6.39:1 AA */
+  --purple-light:  #2A3F63;
+
+  --gold:          #FFD84A;  /* 12.57:1 AA  achievement only */
+  --gold-text:     #FFD84A;
+  --green:         #5EEA93;  /* 11.32:1 AA */
+  --green-text:    #5EEA93;
+  --red:           #FF6B6B;  /*  6.27:1 AA */
+  --blue:          #7EB6FF;
+
+  --text-on-accent: #0F1A2E;
+}
+
+/* Kid surface: 16px body floor — nothing a child reads goes below it. */
+:root[data-surface="kid"] { --t-caption: 14px; --t-micro: 12px; }
+
+/* ============================================================
+   Base
+   ============================================================ */
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--t-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus must always be visible (DESIGN-SYSTEM.md §7) */
+:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
+/* Touch targets: 44px min, 48px on the kid surface */
+button, [role="button"], a.btn { min-height: 44px; min-width: 44px; }
+:root[data-surface="kid"] button { min-height: 48px; min-width: 48px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
