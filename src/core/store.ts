@@ -61,6 +61,8 @@ export class Store {
   private listeners = new Set<Listener>();
 
   private backend: Backend | null = null;
+  /** Monotonic within a session; only ever used to disambiguate profile ids. */
+  private seq = 0;
 
   constructor(private ls: Storage) {}
 
@@ -90,22 +92,28 @@ export class Store {
    */
   async publishAll(): Promise<void> {
     const b = this.backend;
-    const s = this.state;
-    if (!b?.enabled || !b.user || !s) return;
-    const rows: LeaderboardRow[] = [];
-    for (const id of Object.keys(s.tracks)) {
-      const st = s.tracks[id];
-      if (!st) continue;
-      const def = getTrack(id);
-      rows.push(buildRow({
-        def, state: st, ladder: LADDERS[def.ladder] ?? LADDERS['chess']!,
-        user: b.user, profileId: s.profileId,
-        playerName: s.playerName, playerAvatar: s.playerAvatar,
-      }));
-    }
+    if (!b?.enabled || !b.user) return;
+    // Every profile, not just the active one. The rollup is the parent's
+    // cross-kid view (FR6), so a sibling who happens not to be on screen must
+    // still be written — otherwise their dashboard row has nothing to read.
+    // Reads only; the active profile is untouched.
     try {
-      await Promise.all(rows.map((r) => b.publish(r)));
-      await b.saveRollup(s.profileId, rows);
+      for (const p of this.profiles) {
+        const s = p.state;
+        const rows: LeaderboardRow[] = [];
+        for (const id of Object.keys(s.tracks)) {
+          const st = s.tracks[id];
+          if (!st) continue;
+          const def = getTrack(id);
+          rows.push(buildRow({
+            def, state: st, ladder: LADDERS[def.ladder] ?? LADDERS['chess']!,
+            user: b.user, profileId: s.profileId,
+            playerName: s.playerName, playerAvatar: s.playerAvatar,
+          }));
+        }
+        await Promise.all(rows.map((r) => b.publish(r)));
+        await b.saveRollup(s.profileId, rows);
+      }
     } catch (err) {
       console.warn('[beat-the-slide] sync failed; local data is unaffected.', err);
     }
@@ -149,7 +157,12 @@ export class Store {
   }
 
   addProfile(name: string): Profile {
-    const p = newProfile(`p_${Date.now().toString(36)}`, name);
+    // Date.now() alone collides when two kids are added in the same
+    // millisecond, and a duplicate id makes the second kid unreachable:
+    // `profile` resolves by find(), so it always returns the first match.
+    // A counter suffix keeps ids unique without depending on wall-clock gaps.
+    const id = `p_${Date.now().toString(36)}_${(this.seq++).toString(36)}`;
+    const p = newProfile(id, name);
     this.profiles.push(p);
     this.currentId = p.id;
     this.emit();
