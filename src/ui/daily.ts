@@ -20,7 +20,10 @@ function toast(msg: string): void {
   setTimeout(() => t.remove(), 2400);
 }
 
-export function renderDaily(root: HTMLElement, store: Store, onMarketplace: () => void): void {
+export function renderDaily(
+  root: HTMLElement, store: Store,
+  onMarketplace: () => void, onDigest?: () => void,
+): void {
   const s = store.state;
   const t: TrackState | null = store.activeTrack;
   if (!s || !t) { onMarketplace(); return; }
@@ -49,7 +52,7 @@ export function renderDaily(root: HTMLElement, store: Store, onMarketplace: () =
     ]),
     el('span', { class: 'muted', style: 'font-weight:700' }, [menuOpen ? '▲ Switch' : '▼ Switch']),
   ]);
-  on(sw, 'click', () => { menuOpen = !menuOpen; renderDaily(root, store, onMarketplace); });
+  on(sw, 'click', () => { menuOpen = !menuOpen; renderDaily(root, store, onMarketplace, onDigest); });
   screen.append(sw);
 
   if (menuOpen) {
@@ -64,7 +67,7 @@ export function renderDaily(root: HTMLElement, store: Store, onMarketplace: () =
       ]);
       on(b, 'click', () => {
         store.setActiveTrack(id); menuOpen = false;
-        renderDaily(root, store, onMarketplace); toast(`Switched to ${d.name}`);
+        renderDaily(root, store, onMarketplace, onDigest); toast(`Switched to ${d.name}`);
       });
       menu.append(b);
     }
@@ -104,7 +107,7 @@ export function renderDaily(root: HTMLElement, store: Store, onMarketplace: () =
       el('span', { class: 'label' }, [a.label]),
       ...(doneNow ? [el('span', { class: 'done' }, ['✓ Done'])] : []),
     ]);
-    on(b, 'click', () => { store.toggle(String(a.id)); renderDaily(root, store, onMarketplace); });
+    on(b, 'click', () => { store.toggle(String(a.id)); renderDaily(root, store, onMarketplace, onDigest); });
     acts.append(b);
   }
   screen.append(acts);
@@ -156,7 +159,11 @@ export function renderDaily(root: HTMLElement, store: Store, onMarketplace: () =
     unsubscribeLeaderboard = store.watchLeaderboard(String(def.trackId), (rows: LeaderboardRow[]) => {
       clear(lbBody);
       if (!rows.length) {
-        lbBody.append(el('p', { class: 'muted' }, ['No one here yet — invite a friend.']));
+        // No invite flow exists yet, so this must not promise one. It states
+        // the real mechanism: the board fills from other families on this track.
+        lbBody.append(el('p', { class: 'muted' }, [
+          `No one else is on ${def.name} yet. As other families start this track, they'll show up here.`,
+        ]));
         return;
       }
       rows.slice(0, 5).forEach((r, i) => {
@@ -175,9 +182,17 @@ export function renderDaily(root: HTMLElement, store: Store, onMarketplace: () =
     clear(lbBody);
     lbBody.append(el('p', { class: 'muted' }, [
       store.syncEnabled
-        ? 'Sign in to compare with friends.'
+        ? 'Sign in to see how other families are doing on this track.'
         : 'Leaderboards need an internet connection.',
     ]));
+  }
+
+  // Parent entry point. Deliberately understated on the kid's screen.
+  if (onDigest) {
+    const pd = el('button', { class: 'btn btn--ghost', type: 'button', style: 'margin-bottom:var(--s-2)' },
+      ["📋 This week's summary (for parents)"]);
+    on(pd, 'click', onDigest);
+    screen.append(pd);
   }
 
   // add-a-track affordance, gated by FR7
