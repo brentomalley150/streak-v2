@@ -7,6 +7,7 @@ import { Store } from './core/store.js';
 import { createBackend } from './core/firebase.js';
 import { renderOnboarding } from './ui/onboarding.js';
 import { renderDaily, renderMarketplace } from './ui/daily.js';
+import { renderDigest } from './ui/digest.js';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('#app not found');
@@ -23,7 +24,7 @@ void createBackend().then((b) => {
 });
 const { migrated } = store.init();
 
-type View = 'onboarding' | 'daily' | 'marketplace';
+type View = 'onboarding' | 'daily' | 'marketplace' | 'digest';
 
 let current: View = 'onboarding';
 
@@ -31,7 +32,8 @@ function show(view: View): void {
   current = view;
   if (view === 'onboarding') renderOnboarding(root!, store, () => show('daily'));
   else if (view === 'marketplace') renderMarketplace(root!, store, () => show('daily'));
-  else renderDaily(root!, store, () => show('marketplace'));
+  else if (view === 'digest') renderDigest(root!, store, () => show('daily'));
+  else renderDaily(root!, store, () => show('marketplace'), () => show('digest'));
 }
 
 // A migrated v1 family lands straight in the game with their data intact.

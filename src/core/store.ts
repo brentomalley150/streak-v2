@@ -215,6 +215,26 @@ export class Store {
     this.emit();
   }
 
+  /**
+   * Apply a digest proposal. This is the ONLY path by which the parent-side
+   * agent writes back to the kid app — guardrail 6, confirm-before-action.
+   * Called from the confirm button's handler, never from rendering.
+   */
+  applyProposal(note: string, activityId?: string): void {
+    const t = this.activeTrack;
+    if (!t) return;
+    t.weekFocus = activityId ? `${note}` : note;
+    this.emit();
+  }
+
+  /** Parent declined. Remember it so the same week isn't re-asked. */
+  dismissProposal(): void {
+    const t = this.activeTrack;
+    if (!t) return;
+    t.proposalDismissedWeek = new Date().toISOString().slice(0, 10);
+    this.emit();
+  }
+
   /** Subscribe to one track's leaderboard. Returns an unsubscribe function. */
   watchLeaderboard(trackId: string, fn: (rows: LeaderboardRow[]) => void): () => void {
     if (!this.backend?.enabled) { fn([]); return () => {}; }

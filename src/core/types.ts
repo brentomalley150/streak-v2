@@ -122,6 +122,10 @@ export interface TrackState {
   prizes: Prize[];
   claimHistory: string[];
   baseline: Record<string, number | null>;
+  /** Set ONLY by a parent-confirmed digest proposal (guardrail 6). */
+  weekFocus?: string;
+  /** The week a proposal was last dismissed, so it isn't re-offered. */
+  proposalDismissedWeek?: string;
 }
 
 export interface ParentAuth {

@@ -55,6 +55,7 @@ In dev, the console exposes `bts.reset()` and `bts.demo()`.
 | `src/core/storage.ts` | localStorage + the v1 → v2 migration (§5) |
 | `src/core/sync.ts` | Backend contract + pure projection logic. No SDK import |
 | `src/core/firebase.ts` | The only file that touches Firebase. Lazy-loaded |
+| `src/core/digest.ts` | The parent-side agentic loop. Rules today, LLM-ready seam |
 | `src/core/store.ts` | State container, persists on change |
 | `src/tracks/*.ts` | Track definitions — **data, not code** |
 | `src/ui/*.ts` | Onboarding and the daily screen |
@@ -79,5 +80,10 @@ rollup, behind a `Backend` interface. **It is optional** — with no config the
 app runs entirely on localStorage and says so honestly in the UI. See
 [docs/FIREBASE-SETUP.md](docs/FIREBASE-SETUP.md).
 
-Not yet built: prizes and trophies, the parent rollup *screen* (the data is
-published), and the agentic weekly digest.
+The weekly parent digest is built: the Retrieve → Diagnose → Prioritise →
+Propose → Confirm loop from `agentic-ai.html`, implemented as deterministic
+rules behind a `Diagnostician` interface an LLM can replace. All six guardrails
+are enforced by tests rather than promised in a prompt.
+
+Not yet built: prizes and trophies, and the parent cross-track rollup *screen*
+(its data already publishes).
