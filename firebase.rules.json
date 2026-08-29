@@ -1,12 +1,40 @@
 {
+  "_comment": "MERGED RULES — v1 (SummerStreak, live) + v2 (Beat the Slide). Both apps share the summerstreak project. The v1 block below is UNCHANGED from what is published today: do not edit it. v2 lives entirely under /v2.",
+
   "rules": {
+
+    "leaderboard": {
+      ".read": "auth != null",
+      "$entry": {
+        ".write": "auth != null && ($entry.beginsWith(auth.uid) || root.child('admins').child(auth.uid).val() === true)"
+      }
+    },
+    "weeklyHistory": {
+      ".read": "auth != null",
+      "$weekNum": {
+        "$entry": {
+          ".write": "auth != null && ($entry.beginsWith(auth.uid) || root.child('admins').child(auth.uid).val() === true)"
+        }
+      }
+    },
+    "weeklyWinners": {
+      ".read": "auth != null",
+      "$weekNum": {
+        ".write": "auth != null && (!data.exists() || root.child('admins').child(auth.uid).val() === true)"
+      }
+    },
+    "admins": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": false
+    },
+
     "v2": {
       "tracks": {
         "$trackId": {
           "leaderboard": {
             ".read": "auth != null",
             "$key": {
-              ".write": "auth != null && $key.beginsWith(auth.uid + '_')",
+              ".write": "auth != null && ($key.beginsWith(auth.uid + '_') || root.child('admins').child(auth.uid).val() === true)",
               ".validate": "newData.hasChildren(['uid','profileId','trackId','name','points'])",
               "uid":     { ".validate": "newData.val() === auth.uid" },
               "trackId": { ".validate": "newData.val() === $trackId" },
@@ -16,13 +44,15 @@
           "weeklyHistory": {
             ".read": "auth != null",
             "$week": {
-              "$key": { ".write": "auth != null && $key.beginsWith(auth.uid + '_')" }
+              "$key": {
+                ".write": "auth != null && ($key.beginsWith(auth.uid + '_') || root.child('admins').child(auth.uid).val() === true)"
+              }
             }
           },
           "weeklyWinners": {
             ".read": "auth != null",
             "$week": {
-              ".write": "auth != null && !data.exists()"
+              ".write": "auth != null && (!data.exists() || root.child('admins').child(auth.uid).val() === true)"
             }
           }
         }

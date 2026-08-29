@@ -14,12 +14,21 @@ if (!root) throw new Error('#app not found');
 const store = new Store(window.localStorage);
 // Attach before init so a signed-in family syncs as soon as auth resolves.
 // With no config this is a no-op backend and the app runs entirely offline.
-void createBackend().then((b) => store.attachBackend(b));
+// The backend loads asynchronously (the SDK is code-split), so the first paint
+// happens before it is ready. Re-render once it attaches, otherwise onboarding
+// keeps showing the offline copy on a device that can actually sync.
+void createBackend().then((b) => {
+  store.attachBackend(b);
+  if (current === 'onboarding') show('onboarding');
+});
 const { migrated } = store.init();
 
 type View = 'onboarding' | 'daily' | 'marketplace';
 
+let current: View = 'onboarding';
+
 function show(view: View): void {
+  current = view;
   if (view === 'onboarding') renderOnboarding(root!, store, () => show('daily'));
   else if (view === 'marketplace') renderMarketplace(root!, store, () => show('daily'));
   else renderDaily(root!, store, () => show('marketplace'));
