@@ -53,6 +53,8 @@ In dev, the console exposes `bts.reset()` and `bts.demo()`.
 | `src/core/types.ts` | The contract from `docs/DATA-MODEL.md` §3, as types |
 | `src/core/engine.ts` | Pure track engine. **Names no track** — enforced by a test |
 | `src/core/storage.ts` | localStorage + the v1 → v2 migration (§5) |
+| `src/core/sync.ts` | Backend contract + pure projection logic. No SDK import |
+| `src/core/firebase.ts` | The only file that touches Firebase. Lazy-loaded |
 | `src/core/store.ts` | State container, persists on change |
 | `src/tracks/*.ts` | Track definitions — **data, not code** |
 | `src/ui/*.ts` | Onboarding and the daily screen |
@@ -72,6 +74,10 @@ Built: the track engine, all three tracks, onboarding with a blocking COPPA
 consent gate, the daily screen, the track switcher, the marketplace, the
 free-tier limit, and the v1 migration.
 
-Not yet built: Firebase sync (paths are specced in `docs/DATA-MODEL.md` §3.5),
-per-track leaderboards, prizes and trophies, the parent rollup, and the agentic
-weekly digest.
+Firebase sync is built: Google sign-in, per-track leaderboards, and the parent
+rollup, behind a `Backend` interface. **It is optional** — with no config the
+app runs entirely on localStorage and says so honestly in the UI. See
+[docs/FIREBASE-SETUP.md](docs/FIREBASE-SETUP.md).
+
+Not yet built: prizes and trophies, the parent rollup *screen* (the data is
+published), and the agentic weekly digest.

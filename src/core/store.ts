@@ -9,6 +9,9 @@ import { todayKey, toggleActivity, getEntry } from './engine.js';
 import {
   loadProfiles, saveProfiles, currentProfileId, setCurrentProfileId, migrate,
 } from './storage.js';
+import type { AuthUser, Backend, LeaderboardRow } from './sync.js';
+import { buildRow } from './sync.js';
+import { LADDERS } from '../tracks/ladders.js';
 
 type Listener = () => void;
 
@@ -57,7 +60,56 @@ export class Store {
   private currentId: string | null = null;
   private listeners = new Set<Listener>();
 
+  private backend: Backend | null = null;
+
   constructor(private ls: Storage) {}
+
+  /**
+   * Attach a backend. Optional by design — with none, or with one that is
+   * disabled, everything below still works against localStorage alone.
+   */
+  attachBackend(b: Backend): void {
+    this.backend = b;
+    b.onAuth((u) => { if (u) void this.publishAll(); });
+  }
+
+  get user(): AuthUser | null { return this.backend?.user ?? null; }
+  get syncEnabled(): boolean { return this.backend?.enabled === true; }
+
+  async signIn(): Promise<AuthUser | null> {
+    if (!this.backend?.enabled) return null;
+    const u = await this.backend.signIn();
+    await this.publishAll();
+    return u;
+  }
+
+  /**
+   * Push every enrolled track for the current profile.
+   * Failure is non-fatal: local state is the source of truth, so a dropped
+   * network means a stale leaderboard, never lost progress.
+   */
+  async publishAll(): Promise<void> {
+    const b = this.backend;
+    const s = this.state;
+    if (!b?.enabled || !b.user || !s) return;
+    const rows: LeaderboardRow[] = [];
+    for (const id of Object.keys(s.tracks)) {
+      const st = s.tracks[id];
+      if (!st) continue;
+      const def = getTrack(id);
+      rows.push(buildRow({
+        def, state: st, ladder: LADDERS[def.ladder] ?? LADDERS['chess']!,
+        user: b.user, profileId: s.profileId,
+        playerName: s.playerName, playerAvatar: s.playerAvatar,
+      }));
+    }
+    try {
+      await Promise.all(rows.map((r) => b.publish(r)));
+      await b.saveRollup(s.profileId, rows);
+    } catch (err) {
+      console.warn('[beat-the-slide] sync failed; local data is unaffected.', err);
+    }
+  }
 
   /** Migrate v1 data if present, then load. Safe to call once at boot. */
   init(): { migrated: number } {
@@ -78,6 +130,7 @@ export class Store {
     saveProfiles(this.ls, this.profiles);
     if (this.currentId) setCurrentProfileId(this.ls, this.currentId);
     for (const fn of this.listeners) fn();
+    void this.publishAll();   // fire-and-forget; never blocks the UI
   }
 
   get hasProfile(): boolean { return this.profiles.length > 0; }
@@ -160,6 +213,12 @@ export class Store {
     entry.values[fieldId] = value;
     t.entries[date] = entry;
     this.emit();
+  }
+
+  /** Subscribe to one track's leaderboard. Returns an unsubscribe function. */
+  watchLeaderboard(trackId: string, fn: (rows: LeaderboardRow[]) => void): () => void {
+    if (!this.backend?.enabled) { fn([]); return () => {}; }
+    return this.backend.subscribeLeaderboard(trackId, fn);
   }
 
   /** Dev/testing helper — wipes v2 keys only, never v1's. */

@@ -4,6 +4,7 @@
  */
 import './styles/app.css';
 import { Store } from './core/store.js';
+import { createBackend } from './core/firebase.js';
 import { renderOnboarding } from './ui/onboarding.js';
 import { renderDaily, renderMarketplace } from './ui/daily.js';
 
@@ -11,6 +12,9 @@ const root = document.getElementById('app');
 if (!root) throw new Error('#app not found');
 
 const store = new Store(window.localStorage);
+// Attach before init so a signed-in family syncs as soon as auth resolves.
+// With no config this is a no-op backend and the app runs entirely offline.
+void createBackend().then((b) => store.attachBackend(b));
 const { migrated } = store.init();
 
 type View = 'onboarding' | 'daily' | 'marketplace';

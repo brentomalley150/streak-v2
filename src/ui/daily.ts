@@ -8,8 +8,10 @@ import { getTrack, TRACKS } from '../tracks/index.js';
 import { LADDERS } from '../tracks/ladders.js';
 import { computeStats, todayKey, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, canEnroll } from '../core/engine.js';
 import { el, clear, on } from './dom.js';
+import { leaderboardKey, type LeaderboardRow } from '../core/sync.js';
 
 let menuOpen = false;
+let unsubscribeLeaderboard: (() => void) | null = null;
 
 function toast(msg: string): void {
   document.querySelector('.toast')?.remove();
@@ -140,6 +142,43 @@ export function renderDaily(root: HTMLElement, store: Store, onMarketplace: () =
   screen.append(el('div', { class: 'mod' }, [
     el('div', { class: 'head' }, [`${def.name} so far`]), cols,
   ]));
+
+  // Live per-track leaderboard (FR5). Renders a loading state first, then real
+  // rows — never a bare empty list that reads as "you have no friends".
+  const lbBody = el('div', {}, [el('p', { class: 'muted' }, ['—'])]);
+  screen.append(el('div', { class: 'mod' }, [
+    el('div', { class: 'head' }, [`${def.name} leaderboard`]), lbBody,
+  ]));
+
+  if (store.syncEnabled && store.user) {
+    const me = leaderboardKey(store.user.uid, s.profileId);
+    unsubscribeLeaderboard?.();
+    unsubscribeLeaderboard = store.watchLeaderboard(String(def.trackId), (rows: LeaderboardRow[]) => {
+      clear(lbBody);
+      if (!rows.length) {
+        lbBody.append(el('p', { class: 'muted' }, ['No one here yet — invite a friend.']));
+        return;
+      }
+      rows.slice(0, 5).forEach((r, i) => {
+        const mine = r.leaderboardKey === me;
+        lbBody.append(el('div', {
+          class: 'row', style: `padding:6px 0${mine ? ';font-weight:800' : ''}`,
+        }, [
+          el('span', { class: 'muted', style: 'width:18px' }, [String(i + 1)]),
+          el('span', { style: 'font-size:16px' }, [r.avatar]),
+          el('span', { style: 'flex:1;min-width:0' }, [mine ? `${r.name} (you)` : r.name]),
+          el('span', { style: 'font-weight:800;color:var(--gold)' }, [String(r.points)]),
+        ]));
+      });
+    });
+  } else {
+    clear(lbBody);
+    lbBody.append(el('p', { class: 'muted' }, [
+      store.syncEnabled
+        ? 'Sign in to compare with friends.'
+        : 'Leaderboards need an internet connection.',
+    ]));
+  }
 
   // add-a-track affordance, gated by FR7
   const enrolled = Object.keys(s.tracks).length;

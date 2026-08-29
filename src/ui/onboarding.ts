@@ -31,8 +31,29 @@ export function renderOnboarding(
   };
 
   function step1(): void {
-    const btn = el('button', { class: 'btn', type: 'button' }, ['Sign in with Google']);
-    on(btn, 'click', () => { step = 2; step2(); });
+    const canSync = store.syncEnabled;
+    const btn = el('button', { class: 'btn', type: 'button' },
+      [canSync ? 'Sign in with Google' : 'Get started']);
+    const err = el('p', { class: 'muted', style: 'color:var(--red);margin-top:10px' }, []);
+
+    on(btn, 'click', () => {
+      if (!canSync) { step = 2; step2(); return; }
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+      void store.signIn()
+        .then(() => { step = 2; step2(); })
+        .catch(() => {
+          // Sign-in is for syncing across devices, not for playing. If it fails
+          // the family continues on this device rather than being stuck.
+          btn.disabled = false;
+          btn.textContent = 'Sign in with Google';
+          err.textContent = "Couldn't sign in. You can continue without it — progress saves on this device.";
+          const skip = el('button', { class: 'btn btn--link', type: 'button' },
+            ['Continue without signing in']);
+          on(skip, 'click', () => { step = 2; step2(); });
+          err.after(skip);
+        });
+    });
     screen([
       dots(),
       el('div', { style: 'text-align:center' }, [
@@ -41,8 +62,11 @@ export function renderOnboarding(
         el('p', {}, ['Build a daily habit your kid actually wants to keep — reading, math, music, whatever matters this season.']),
       ]),
       btn,
+      err,
       el('p', { class: 'muted', style: 'text-align:center;margin-top:12px' },
-        ['A parent signs in. Your kid never needs an account.']),
+        [canSync
+          ? 'A parent signs in. Your kid never needs an account.'
+          : 'Progress saves on this device. Your kid never needs an account.']),
     ], true);
   }
 
