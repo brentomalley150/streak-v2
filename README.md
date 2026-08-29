@@ -1,6 +1,6 @@
-# Streak v2
+# Beat the Slide v2
 
-The next-generation Streak app — built by **Kate** (founder) and **Brent** (advisor).
+The next-generation Beat the Slide app — built by **Kate** (founder) and **Brent** (advisor).
 
 Successor to SummerStreak v1: taking the proven summer reading challenge and
 making it a year-round, multi-persona streak platform.

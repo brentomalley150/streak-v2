@@ -1,4 +1,4 @@
-# Streak v2 — Design System
+# Beat the Slide v2 — Design System
 
 **Status:** Draft v1 · **Date:** 2026-08-28
 **Owner:** Kate O'Malley · **Author:** Brent O'Malley
@@ -12,7 +12,7 @@
 
 ## 1. Why this document exists
 
-Four Streak surfaces exist today and **all four use different, conflicting palettes**:
+Four Beat the Slide surfaces exist today and **all four use different, conflicting palettes**:
 
 | Surface | Base | Primary | Tokens? |
 |---|---|---|---|
@@ -31,7 +31,7 @@ the AA requirement in the PRD silently goes unmet.
 
 ## 2. The two-surface principle
 
-Streak has **two audiences with opposite needs**, and this is a design constraint,
+Beat the Slide has **two audiences with opposite needs**, and this is a design constraint,
 not a style preference. It mirrors the split already established in
 `agentic-ai.html` (rules for the kid, agent for the parent).
 

@@ -1,4 +1,4 @@
-# Streak v2 — Data Model & Migration Spec
+# Beat the Slide v2 — Data Model & Migration Spec
 
 **Status:** Draft v1 · **Date:** 2026-08-28
 **Owner:** Kate O'Malley · **Author:** Brent O'Malley
