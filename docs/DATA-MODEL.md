@@ -354,7 +354,13 @@ Prizes, goals, claim history, baseline scores and parent auth were never synced.
    the cutover is not carried forward. Decide whether to backfill `/weeklyHistory`
    or start a fresh season at the transition (recommend: fresh season, aligned to
    the Back to School track launch).
-5. **Test against a copy of production before shipping.** Export the real RTDB and
+5. **Points are recomputed, not carried.** v1 stored a per-day `points` value
+   and summed it. v2 recomputes from the track's `activities[]` instead, so a
+   day's score can never drift from what was actually completed. Verified in
+   `storage.test.ts`: on real v1 data both methods agree (26 points), and a
+   tampered stored total is ignored. This is deliberate — a stored total that
+   has drifted is unfixable after the fact.
+6. **Test against a copy of production before shipping.** Export the real RTDB and
    a real profiles blob; run the migration; diff computed stats (points, streak,
    rank, days-done) before and after. **They must be identical.**
 
