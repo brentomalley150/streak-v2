@@ -128,3 +128,16 @@ describe('NullBackend — the app must work with no Firebase', () => {
     await expect(new NullBackend().signIn()).rejects.toThrow(/not configured/);
   });
 });
+
+describe('buildRow must not publish the parent’s identity', () => {
+  it('carries no email field', () => {
+    const s = stateWith(READING_SLIDE, [['2026-08-24', ['read']]]);
+    const row = buildRow({
+      def: READING_SLIDE, state: s, ladder: LADDERS['chess']!, user: USER,
+      profileId: 'p_declan', playerName: 'Declan', playerAvatar: '👑',
+      now: new Date(2026, 7, 26),
+    });
+    expect(JSON.stringify(row)).not.toContain(USER.email);
+    expect('ownerEmail' in row).toBe(false);
+  });
+});

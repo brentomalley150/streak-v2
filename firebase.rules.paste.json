@@ -40,6 +40,48 @@
               },
               "name": {
                 ".validate": "newData.isString() && newData.val().length <= 24"
+              },
+              "profileId": {
+                ".validate": true
+              },
+              "leaderboardKey": {
+                ".validate": true
+              },
+              "avatar": {
+                ".validate": true
+              },
+              "theme": {
+                ".validate": true
+              },
+              "points": {
+                ".validate": "newData.isNumber()"
+              },
+              "weeklyPoints": {
+                ".validate": "newData.isNumber()"
+              },
+              "weekStartKey": {
+                ".validate": true
+              },
+              "rank": {
+                ".validate": true
+              },
+              "rankPiece": {
+                ".validate": true
+              },
+              "stats": {
+                ".validate": true
+              },
+              "currentStreak": {
+                ".validate": "newData.isNumber()"
+              },
+              "lastSeen": {
+                ".validate": true
+              },
+              "ownerEmail": {
+                ".validate": false
+              },
+              "$other": {
+                ".validate": false
               }
             }
           },

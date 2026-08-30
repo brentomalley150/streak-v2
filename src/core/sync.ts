@@ -16,7 +16,9 @@ export interface LeaderboardRow {
   uid: string;
   profileId: string;
   leaderboardKey: string;
-  ownerEmail: string;
+  // No ownerEmail, deliberately. This row is written to a node any signed-in
+  // user can read, so it must carry only what the consent screen promises:
+  // a first name and a score. v2.0 published the parent's account email here.
   name: string;
   avatar: string;
   trackId: string;
@@ -111,7 +113,6 @@ export function buildRow(args: {
     uid: user.uid,
     profileId,
     leaderboardKey: leaderboardKey(user.uid, profileId),
-    ownerEmail: user.email,
     // A first name only. Never a last name, photo or location — the promise the
     // onboarding consent screen makes to the parent.
     name: playerName,

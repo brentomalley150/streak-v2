@@ -79,3 +79,56 @@ describe('v2 stays inside /v2', () => {
     expect(f['.write']).toContain('auth.uid === $uid');
   });
 });
+
+/**
+ * The published leaderboard row is world-readable to any signed-in user, so it
+ * must carry only what the onboarding consent screen promises: "Friends see
+ * only a first name and a score. Never a last name, photo, or location."
+ *
+ * v2.0 shipped `ownerEmail: user.email` on that row, which broke that promise —
+ * a parent's real email, readable by every other user, for a person who never
+ * appears on the leaderboard at all.
+ */
+describe('the published row discloses only what consent promised', () => {
+  const lb = rules['v2'].tracks.$trackId.leaderboard;
+
+  it('is readable by any signed-in user — so its contents are public', () => {
+    expect(lb['.read']).toBe('auth != null');
+  });
+
+  it('rejects an email field outright', () => {
+    const v = JSON.stringify(lb.$key);
+    expect(v).toContain('ownerEmail');
+    expect(lb.$key.ownerEmail['.validate']).toBe(false);
+  });
+
+  it('names every field it allows, so a new one cannot leak silently', () => {
+    // hasChildren() is a MINIMUM check: extra fields pass. An explicit
+    // allow-list is what stops the next ownerEmail.
+    const allowed = lb.$key['.validate'];
+    expect(allowed).toContain('newData.hasChildren');
+    for (const f of ['uid', 'profileId', 'trackId', 'name', 'points']) {
+      expect(allowed).toContain(f);
+    }
+    expect(lb.$key['$other']['.validate']).toBe(false);
+  });
+});
+
+/**
+ * firebase.rules.paste.json is what actually gets pasted into the Firebase
+ * console — it is firebase.rules.json minus the _comment key, which Firebase
+ * rejects. If they drift, a rules fix looks committed but never deploys. That
+ * had already happened once.
+ */
+describe('the paste copy matches the source of truth', () => {
+  it('differs only by the _comment key', () => {
+    const paste = JSON.parse(
+      readFileSync(fileURLToPath(new URL('../../firebase.rules.paste.json', import.meta.url)), 'utf8'),
+    );
+    const source = JSON.parse(
+      readFileSync(fileURLToPath(new URL('../../firebase.rules.json', import.meta.url)), 'utf8'),
+    );
+    delete source['_comment'];
+    expect(paste).toEqual(source);
+  });
+});
