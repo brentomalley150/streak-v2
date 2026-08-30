@@ -11,6 +11,7 @@ import {
 } from './storage.js';
 import type { AuthUser, Backend, FamilyRollup, LeaderboardRow } from './sync.js';
 import { buildRow } from './sync.js';
+import { hashPin, isValidPin, verifyPin } from './pin.js';
 import { LADDERS } from '../tracks/ladders.js';
 
 type Listener = () => void;
@@ -182,6 +183,42 @@ export class Store {
     const b = this.backend;
     if (!b?.enabled || !b.user) return {};
     return b.loadRollup();
+  }
+
+  /** True once a parent has set a PIN. Nothing is gated before that. */
+  get pinIsSet(): boolean {
+    return this.state?.parentAuth.setupComplete === true
+      && this.state.parentAuth.adminPinHash !== '';
+  }
+
+  /**
+   * Set (or change) the parent PIN. Returns false for an invalid pin so the
+   * caller can say why rather than silently doing nothing.
+   */
+  setParentPin(pin: string, adminName = ''): boolean {
+    const s = this.state;
+    if (!s || !isValidPin(pin)) return false;
+    s.parentAuth.adminPinHash = hashPin(pin);
+    s.parentAuth.setupComplete = true;
+    if (adminName) s.parentAuth.adminName = adminName;
+    this.emit();
+    return true;
+  }
+
+  checkParentPin(pin: string): boolean {
+    const s = this.state;
+    if (!s) return false;
+    return verifyPin(pin, s.parentAuth.adminPinHash);
+  }
+
+  /** Remove the PIN entirely, ungating everything. Requires the current pin. */
+  clearParentPin(pin: string): boolean {
+    const s = this.state;
+    if (!s || !this.checkParentPin(pin)) return false;
+    s.parentAuth.adminPinHash = '';
+    s.parentAuth.setupComplete = false;
+    this.emit();
+    return true;
   }
 
   switchProfile(id: string): void {
