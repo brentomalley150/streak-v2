@@ -9,6 +9,7 @@ import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Database } from 'firebase/database';
 import type { AuthUser, Backend, FamilyRollup, LeaderboardRow } from './sync.js';
+import type { Group, GroupMember } from './groups.js';
 import { NullBackend } from './sync.js';
 
 function readConfig(): Record<string, string> | null {
@@ -122,6 +123,54 @@ class FirebaseBackend implements Backend {
    * falls back to local profiles rather than showing an error for a screen
    * that is mostly local data anyway.
    */
+  /**
+   * Groups (FR13–FR18). The groupId is the join code, so resolving an invite is
+   * one direct read rather than an index that would need its own rules and
+   * could drift out of sync.
+   */
+  async createGroup(group: Group): Promise<void> {
+    if (!this.user) return;
+    await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${group.id}`), {
+      meta: group.meta, members: group.members ?? {},
+    });
+  }
+
+  async loadGroup(groupId: string): Promise<Group | null> {
+    try {
+      const snap = await this.sdk.get(this.sdk.ref(this.db, `v2/groups/${groupId}`));
+      const v = snap.val();
+      // A bad code is an ordinary outcome, not an error: someone mistyped it.
+      if (!v?.meta) return null;
+      return { id: groupId, meta: v.meta, members: v.members ?? {} };
+    } catch {
+      return null;
+    }
+  }
+
+  async joinGroup(groupId: string, key: string, member: GroupMember): Promise<void> {
+    if (!this.user) return;
+    await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${groupId}/members/${key}`), member);
+  }
+
+  async leaveGroup(groupId: string, key: string): Promise<void> {
+    if (!this.user) return;
+    // FR18: leaving removes the entry outright, not a tombstone.
+    await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${groupId}/members/${key}`), null);
+  }
+
+  async loadMyGroups(): Promise<Group[]> {
+    if (!this.user) return [];
+    try {
+      const snap = await this.sdk.get(this.sdk.ref(this.db, 'v2/groups'));
+      const all = (snap.val() ?? {}) as Record<string, { meta?: Group['meta']; members?: Group['members'] }>;
+      return Object.entries(all)
+        .filter(([, v]) => v?.meta?.ownerUid === this.user!.uid)
+        .map(([id, v]) => ({ id, meta: v.meta!, members: v.members ?? {} }));
+    } catch {
+      return [];
+    }
+  }
+
   async loadRollup(): Promise<FamilyRollup> {
     if (!this.user) return {};
     try {

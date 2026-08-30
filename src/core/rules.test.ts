@@ -132,3 +132,45 @@ describe('the paste copy matches the source of truth', () => {
     expect(paste).toEqual(source);
   });
 });
+
+/**
+ * Groups are the first object that spans households (FR13–FR18), so their rules
+ * carry the whole cross-family safety argument. These assert the properties the
+ * design depends on — not the exact string, but what it guarantees.
+ */
+describe('group rules keep families separate', () => {
+  const g = rules['v2'].groups.$groupId;
+
+  it('lets a member write only their own kid’s entry', () => {
+    // Same key-prefix trick the leaderboard already relies on.
+    expect(g.members.$key['.write']).toContain("$key.beginsWith(auth.uid + '_')");
+  });
+
+  it('lets the owner remove anyone — a teacher must be able to drop a student', () => {
+    expect(g.members.$key['.write']).toContain("meta').child('ownerUid').val() === auth.uid");
+  });
+
+  it('pins ownerUid to the caller, so a group cannot be created in someone else’s name', () => {
+    expect(g.meta.ownerUid['.validate']).toBe('newData.val() === auth.uid');
+  });
+
+  it('stops a second person overwriting an existing group’s meta', () => {
+    expect(g.meta['.write']).toContain("!data.exists() || data.child('ownerUid').val() === auth.uid");
+  });
+
+  it('caps published names, so a full name cannot be written', () => {
+    expect(g.meta.ownerName['.validate']).toContain('length <= 24');
+    expect(g.members.$key.name['.validate']).toContain('length <= 24');
+  });
+
+  it('names every field it allows, so progress data cannot be smuggled in', () => {
+    expect(g.meta.$other['.validate']).toBe(false);
+    expect(g.members.$key.$other['.validate']).toBe(false);
+    expect(g.$other['.validate']).toBe(false);
+  });
+
+  it('leaves v2/families untouched — no cross-family read is introduced', () => {
+    expect(rules['v2'].families.$uid['.read']).toBe('auth != null && auth.uid === $uid');
+    expect(rules['v2'].families.$uid['.write']).toBe('auth != null && auth.uid === $uid');
+  });
+});

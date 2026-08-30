@@ -9,6 +9,7 @@
  *      interface so the rest of the app — and the tests — never import the SDK.
  */
 import type { Rank, TrackDefinition, TrackState } from './types.js';
+import type { Group, GroupMember } from './groups.js';
 import { computeStats, todayKey } from './engine.js';
 
 /** One kid on one track, as the leaderboard sees them. */
@@ -66,6 +67,15 @@ export interface Backend {
   saveRollup(profileId: string, rows: LeaderboardRow[]): Promise<void>;
   /** Every kid, every track, one read. `{}` when signed out or offline. */
   loadRollup(): Promise<FamilyRollup>;
+
+  /** Groups (FR13–FR18). All no-ops offline; the app stays usable without them. */
+  createGroup(group: Group): Promise<void>;
+  /** `null` when the code matches nothing — an unknown link must not throw. */
+  loadGroup(groupId: string): Promise<Group | null>;
+  joinGroup(groupId: string, key: string, member: GroupMember): Promise<void>;
+  leaveGroup(groupId: string, key: string): Promise<void>;
+  /** The groups this account owns. */
+  loadMyGroups(): Promise<Group[]>;
 }
 
 /** `${googleUid}_${profileId}` — one slot per kid, siblings distinct. */
@@ -143,4 +153,9 @@ export class NullBackend implements Backend {
   }
   async saveRollup(): Promise<void> { /* nothing to do */ }
   async loadRollup(): Promise<FamilyRollup> { return {}; }
+  async createGroup(): Promise<void> { /* offline: nothing to share with */ }
+  async loadGroup(): Promise<Group | null> { return null; }
+  async joinGroup(): Promise<void> { /* offline */ }
+  async leaveGroup(): Promise<void> { /* offline */ }
+  async loadMyGroups(): Promise<Group[]> { return []; }
 }

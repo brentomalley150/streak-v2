@@ -10,6 +10,8 @@ import { renderDaily, renderMarketplace } from './ui/daily.js';
 import { renderDigest } from './ui/digest.js';
 import { renderRollup } from './ui/rollup.js';
 import { renderPinGate, renderPinSetup } from './ui/pin.js';
+import { renderMyGroups, renderJoinGroup } from './ui/groups.js';
+import { readJoinCodeFromUrl } from './core/groups.js';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('#app not found');
@@ -27,7 +29,7 @@ void createBackend().then((b) => {
 const { migrated } = store.init();
 
 type View = 'onboarding' | 'daily' | 'marketplace' | 'digest' | 'addKid' | 'rollup'
-  | 'setPin';
+  | 'setPin' | 'groups' | 'join';
 
 /**
  * Screens a kid should not wander into. The daily screen is deliberately absent
@@ -39,6 +41,7 @@ const GATED: Partial<Record<View, string>> = {
   marketplace: 'Adding a track can change your plan.',
   addKid: 'Setting up another kid is a parent job.',
   rollup: "This shows every kid's progress.",
+  groups: 'Challenges you run are a parent job.',
   digest: 'This is your weekly summary.',
 };
 
@@ -58,9 +61,17 @@ function draw(view: View): void {
   else if (view === 'rollup') renderRollup(root!, store, () => show('daily'));
   else if (view === 'setPin') {
     renderPinSetup(root!, store, () => show('daily'), () => show('daily'));
+  } else if (view === 'groups') {
+    renderMyGroups(root!, store, () => show('daily'));
+  } else if (view === 'join') {
+    renderJoinGroup(root!, store, pendingJoinCode!, () => {
+      pendingJoinCode = null;
+      show(store.hasProfile && store.activeTrack ? 'daily' : 'onboarding');
+    });
   } else {
     renderDaily(root!, store, () => show('marketplace'), () => show('digest'),
-      () => show('addKid'), () => show('rollup'), () => show('setPin'));
+      () => show('addKid'), () => show('rollup'), () => show('setPin'),
+      () => show('groups'));
   }
 }
 
@@ -81,7 +92,22 @@ if (migrated > 0) {
   console.info(`[beat-the-slide] migrated ${migrated} profile(s) from v1`);
 }
 
-show(store.hasProfile && store.activeTrack ? 'daily' : 'onboarding');
+/**
+ * An invite link is the first thing this app has ever read from the URL, so it
+ * is handled defensively: anything malformed yields null and the app boots
+ * exactly as before. The code is stripped from the address bar either way, so a
+ * refresh does not re-prompt and the link does not linger in history.
+ */
+let pendingJoinCode = readJoinCodeFromUrl(location.search);
+if (pendingJoinCode) history.replaceState(null, '', location.pathname);
+
+if (pendingJoinCode) {
+  // The join screen needs a backend to resolve the code, so let auth settle
+  // rather than flashing "that link didn't work" before sync attaches.
+  void createBackend().then(() => show('join'));
+} else {
+  show(store.hasProfile && store.activeTrack ? 'daily' : 'onboarding');
+}
 
 // Dev helpers, available in the console during development only.
 if (import.meta.env.DEV) {

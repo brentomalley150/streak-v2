@@ -24,7 +24,7 @@ function toast(msg: string): void {
 export function renderDaily(
   root: HTMLElement, store: Store,
   onMarketplace: () => void, onDigest?: () => void, onAddKid?: () => void,
-  onRollup?: () => void, onSetPin?: () => void,
+  onRollup?: () => void, onSetPin?: () => void, onGroups?: () => void,
 ): void {
   const s = store.state;
   const t: TrackState | null = store.activeTrack;
@@ -65,7 +65,7 @@ export function renderDaily(
     ]);
     on(who, 'click', () => {
       kidMenuOpen = !kidMenuOpen;
-      renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin);
+      renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups);
     });
     screen.append(who);
 
@@ -81,11 +81,11 @@ export function renderDaily(
         ]);
         on(b, 'click', () => {
           kidMenuOpen = false;
-          if (p.id === s.profileId) { renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin); return; }
+          if (p.id === s.profileId) { renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups); return; }
           store.switchProfile(p.id);
           // Close the track menu too: it was showing the previous kid's tracks.
           menuOpen = false;
-          renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin);
+          renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups);
           toast(`Switched to ${p.state.playerName || 'this kid'}`);
         });
         kids.append(b);
@@ -111,7 +111,7 @@ export function renderDaily(
     ]),
     el('span', { class: 'muted', style: 'font-weight:700' }, [menuOpen ? '▲ Switch' : '▼ Switch']),
   ]);
-  on(sw, 'click', () => { menuOpen = !menuOpen; renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin); });
+  on(sw, 'click', () => { menuOpen = !menuOpen; renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups); });
   screen.append(sw);
 
   if (menuOpen) {
@@ -126,7 +126,7 @@ export function renderDaily(
       ]);
       on(b, 'click', () => {
         store.setActiveTrack(id); menuOpen = false;
-        renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin); toast(`Switched to ${d.name}`);
+        renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups); toast(`Switched to ${d.name}`);
       });
       menu.append(b);
     }
@@ -166,7 +166,7 @@ export function renderDaily(
       el('span', { class: 'label' }, [a.label]),
       ...(doneNow ? [el('span', { class: 'done' }, ['✓ Done'])] : []),
     ]);
-    on(b, 'click', () => { store.toggle(String(a.id)); renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin); });
+    on(b, 'click', () => { store.toggle(String(a.id)); renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups); });
     acts.append(b);
   }
   screen.append(acts);
@@ -261,6 +261,14 @@ export function renderDaily(
       ['👨‍👩‍👧 Everyone at a glance (for parents)']);
     on(fam, 'click', onRollup);
     screen.append(fam);
+  }
+
+  // The invite mechanic: challenges this family runs, and the link to share.
+  if (onGroups) {
+    const gr = el('button', { class: 'btn btn--ghost', type: 'button', style: 'margin-bottom:var(--s-2)' },
+      ['🎯 Challenges & invites (for parents)']);
+    on(gr, 'click', onGroups);
+    screen.append(gr);
   }
 
   // Reachable for every family, not just multi-kid ones — this is how a

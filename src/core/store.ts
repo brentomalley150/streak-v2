@@ -12,6 +12,9 @@ import {
 import type { AuthUser, Backend, FamilyRollup, LeaderboardRow } from './sync.js';
 import { buildRow } from './sync.js';
 import { hashPin, isValidPin, verifyPin } from './pin.js';
+import type { Group } from './groups.js';
+import { generateJoinCode, newGroup } from './groups.js';
+import { leaderboardKey } from './sync.js';
 import { LADDERS } from '../tracks/ladders.js';
 
 type Listener = () => void;
@@ -219,6 +222,73 @@ export class Store {
     s.parentAuth.setupComplete = false;
     this.emit();
     return true;
+  }
+
+  /* ---- Groups (FR13–FR18) ------------------------------------------- */
+
+  /** This kid's slot on any board. Null until the family has signed in. */
+  leaderboardKeyFor(profileId?: string): string | null {
+    const u = this.user;
+    const id = profileId ?? this.state?.profileId;
+    return u && id ? leaderboardKey(u.uid, id) : null;
+  }
+
+  /**
+   * Create a challenge others can join. The generated code IS the group id, so
+   * an invite resolves in one read. Returns null when there is no account to
+   * own it — a group has to belong to somebody.
+   */
+  async createGroup(name: string, trackId: string): Promise<Group | null> {
+    const b = this.backend;
+    const u = this.user;
+    if (!b?.enabled || !u || !this.state) return null;
+    const g = newGroup(
+      generateJoinCode(), name.trim(), trackId, u.uid,
+      // First name only: the same disclosure the leaderboard already makes.
+      (u.displayName || 'A parent').split(' ')[0]!,
+      Date.now(),
+    );
+    await b.createGroup(g);
+    return g;
+  }
+
+  /** Resolve an invite code. Null for anything that does not exist. */
+  async loadGroup(code: string): Promise<Group | null> {
+    const b = this.backend;
+    if (!b?.enabled) return null;
+    return b.loadGroup(code);
+  }
+
+  /**
+   * Join, for ONE kid, by their own parent (FR15). Returns false rather than
+   * throwing so the caller can explain why.
+   */
+  async joinGroup(group: Group, profileId?: string): Promise<boolean> {
+    const b = this.backend;
+    const key = this.leaderboardKeyFor(profileId);
+    const p = profileId ? this.profiles.find((x) => x.id === profileId) : this.profile;
+    if (!b?.enabled || !key || !p || !group.meta.open) return false;
+    await b.joinGroup(group.id, key, {
+      name: p.state.playerName || 'Unnamed',
+      avatar: p.state.playerAvatar || '🙂',
+      joinedAt: Date.now(),
+    });
+    return true;
+  }
+
+  /** Leave in one action (FR18). */
+  async leaveGroup(groupId: string, profileId?: string): Promise<boolean> {
+    const b = this.backend;
+    const key = this.leaderboardKeyFor(profileId);
+    if (!b?.enabled || !key) return false;
+    await b.leaveGroup(groupId, key);
+    return true;
+  }
+
+  async myGroups(): Promise<Group[]> {
+    const b = this.backend;
+    if (!b?.enabled || !b.user) return [];
+    return b.loadMyGroups();
   }
 
   switchProfile(id: string): void {
