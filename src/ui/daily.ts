@@ -6,7 +6,7 @@ import type { Store } from '../core/store.js';
 import type { TrackState } from '../core/types.js';
 import { getTrack, TRACKS } from '../tracks/index.js';
 import { LADDERS } from '../tracks/ladders.js';
-import { computeStats, todayKey, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, canEnroll } from '../core/engine.js';
+import { computeStats, todayKey, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, canEnrollNow } from '../core/engine.js';
 import { el, clear, on } from './dom.js';
 import { leaderboardKey, type LeaderboardRow } from '../core/sync.js';
 
@@ -290,7 +290,7 @@ export function renderDaily(
   // add-a-track affordance, gated by FR7
   const enrolled = Object.keys(s.tracks).length;
   const more = el('button', { class: 'btn btn--ghost', type: 'button' },
-    [canEnroll(s.entitlement, enrolled) ? '＋ Add another track' : '🔒 Add another track (Family plan)']);
+    [canEnrollNow(s.entitlement, enrolled) ? '＋ Add another track' : '🔒 Add another track']);
   on(more, 'click', onMarketplace);
   screen.append(more);
 
@@ -311,7 +311,7 @@ export function renderMarketplace(root: HTMLElement, store: Store, back: () => v
 
   for (const def of TRACKS) {
     const on_ = enrolled.includes(String(def.trackId));
-    const allowed = on_ || canEnroll(s.entitlement, enrolled.length);
+    const allowed = on_ || canEnrollNow(s.entitlement, enrolled.length);
     const card = el('div', { class: 'mod' }, [
       el('div', { class: 'row' }, [
         el('span', { style: 'font-size:24px' }, [def.icon]),
@@ -330,11 +330,10 @@ export function renderMarketplace(root: HTMLElement, store: Store, back: () => v
       on(b, 'click', () => { store.enroll(String(def.trackId), def.themes[0] ?? 'chess'); back(); });
       card.append(b);
     } else {
+      // Reached only when billing is enabled; the copy names no price, because
+      // pricing is not decided (PRD §5.3 and its open Instructor-tier question).
       card.append(el('p', { class: 'muted', style: 'margin-top:8px' },
-        ['🔒 Free plan includes 1 track. Add more with Family.']));
-      const b = el('button', { class: 'btn btn--ghost', type: 'button' }, ['See Family plan']);
-      on(b, 'click', () => toast('Family plan — $4.99/mo'));
-      card.append(b);
+        ['🔒 One track at a time on the free plan.']));
     }
     screen.append(card);
   }

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   computeStats, currentStreak, longestStreak, pointsForEntry, rankFor,
-  toggleActivity, makeEntry, weekNumber, canEnroll, computeStatColumns, addDays,
+  toggleActivity, makeEntry, weekNumber, canEnroll, canEnrollNow, computeStatColumns, addDays,
 } from './engine.js';
 import { asDateKey, type DayEntry, type Rank, type TrackDefinition, type TrackState } from './types.js';
 import { READING_SLIDE } from '../tracks/reading-slide.js';
@@ -162,5 +162,20 @@ describe('date maths', () => {
   it('crosses month and year boundaries', () => {
     expect(addDays(d('2026-06-30'), 1)).toBe('2026-07-01');
     expect(addDays(d('2026-01-01'), -1)).toBe('2025-12-31');
+  });
+});
+
+describe('billing is switched off while we build', () => {
+  it('canEnroll still encodes FR7 unchanged, so the rule survives', () => {
+    expect(canEnroll('free', 0)).toBe(true);
+    expect(canEnroll('free', 1)).toBe(false);
+    expect(canEnroll('family', 5)).toBe(true);
+  });
+
+  it('canEnrollNow allows everything while BILLING_ENABLED is false', () => {
+    // Nothing should imply a limit we are not charging for.
+    expect(canEnrollNow('free', 0)).toBe(true);
+    expect(canEnrollNow('free', 3)).toBe(true);
+    expect(canEnrollNow('family', 9)).toBe(true);
   });
 });

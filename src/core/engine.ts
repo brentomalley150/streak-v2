@@ -8,6 +8,7 @@
 import type {
   DateKey, DayEntry, Rank, TrackDefinition, TrackState, TrackStats,
 } from './types.js';
+import { BILLING_ENABLED } from './flags.js';
 import { asDateKey } from './types.js';
 
 export const todayKey = (d: Date = new Date()): DateKey =>
@@ -176,9 +177,25 @@ export function challengeForWeek(
   return def.weeklyChallenges.find((c) => c.week === week) ?? null;
 }
 
-/** FR7 — free tier allows one active track. */
+/**
+ * FR7 — free tier allows one active track.
+ *
+ * Pure and unconditional: the rule itself is unchanged and still tested. Call
+ * sites consult `canEnrollNow()` instead, which honours the billing flag, so
+ * the rule survives intact while billing is switched off.
+ */
 export function canEnroll(
   entitlement: 'free' | 'family', enrolledCount: number,
 ): boolean {
   return entitlement === 'family' || enrolledCount < 1;
+}
+
+/**
+ * What the UI should actually allow right now. With billing off, everything is
+ * enrollable — we do not enforce a limit we are not charging for.
+ */
+export function canEnrollNow(
+  entitlement: 'free' | 'family', enrolledCount: number,
+): boolean {
+  return !BILLING_ENABLED || canEnroll(entitlement, enrolledCount);
 }

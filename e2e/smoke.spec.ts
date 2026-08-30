@@ -113,3 +113,25 @@ test.describe('invite links', () => {
     await expect(page.getByText('Hey Declan')).toBeVisible();
   });
 });
+
+test.describe('nothing asks for money while we are still building', () => {
+  test.beforeEach(async ({ page }) => { await seed(page, ONE_KID); await page.reload(); });
+
+  test('no paid copy anywhere on the daily screen or the marketplace', async ({ page }) => {
+    const paid = /Family plan|\$4\.99|Premium|Upgrade|paid plan/i;
+    expect(await page.locator('body').innerText()).not.toMatch(paid);
+
+    await page.getByRole('button', { name: /Add another track/ }).click();
+    expect(await page.locator('body').innerText()).not.toMatch(paid);
+  });
+
+  test('a second track can actually be enrolled', async ({ page }) => {
+    // FR7's one-track limit is switched off, not merely hidden — a lock with no
+    // way past it would be worse than the paywall it replaced.
+    await page.getByRole('button', { name: /Add another track/ }).click();
+    await page.getByRole('button', { name: /^Enroll/ }).first().click();
+    await expect(page.getByRole('button', { name: /Switch/ }).first()).toBeVisible();
+    const tracks = await page.evaluate(() => Object.keys((window as any).bts.store.state.tracks));
+    expect(tracks.length).toBe(2);
+  });
+});
