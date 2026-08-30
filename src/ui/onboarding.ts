@@ -1,7 +1,8 @@
 /**
- * Onboarding. Six steps, one optional, one driven by the kid.
+ * Onboarding. Seven steps, one optional, one driven by the kid.
  * Step 5 (consent) is BLOCKING — the PRD makes verifiable parental consent a
  * launch requirement, so the button stays disabled until both boxes are ticked.
+ * Step 7 is the handoff: the app is a shared device, and nothing said so.
  */
 import type { Store } from '../core/store.js';
 import { TRACKS } from '../tracks/index.js';
@@ -11,11 +12,11 @@ type Draft = { name: string; trackId: string | null; theme: string | null;
                guardian: boolean; data: boolean };
 
 export function renderOnboarding(
-  root: HTMLElement, store: Store, done: () => void,
+  root: HTMLElement, store: Store, done: () => void, onSetPin?: () => void,
 ): void {
   const draft: Draft = { name: '', trackId: null, theme: null, guardian: false, data: false };
   let step = 1;
-  const TOTAL = 6;
+  const TOTAL = 7;
 
   const dots = () => {
     const d = el('div', { class: 'dots' });
@@ -211,7 +212,9 @@ export function renderOnboarding(
         for (const [k, i] of inputs) vals[k] = i.value ? Number(i.value) : null;
         if (Object.keys(vals).length) store.setBaseline(draft.trackId, vals);
       }
-      done();
+      // The profile exists from here on, so step 7 can set a PIN against it.
+      step = 7;
+      step7();
     };
     const save = el('button', { class: 'btn', type: 'button' }, ['Save & start']);
     const skip = el('button', { class: 'btn btn--link', type: 'button' }, ["Skip — I don't have these"]);
@@ -227,6 +230,58 @@ export function renderOnboarding(
       el('h2', {}, ['Spring test scores?']),
       el('p', {}, [`If you have them, we'll project where ${draft.name || 'they'} could land in the fall. Skip it — everything else works the same.`]),
       list, save, skip,
+    ]);
+  }
+
+  /**
+   * The handoff. Onboarding used to end by dropping the parent into the kid's
+   * daily screen with no explanation, which left the most common question —
+   * "how do I give this to my kid?" — unanswered. The app is a shared device;
+   * this is where that gets said out loud.
+   */
+  function step7(): void {
+    const name = draft.name.trim() || 'your kid';
+
+    const point = (icon: string, text: Array<Node | string>) =>
+      el('div', { class: 'row', style: 'gap:var(--s-3);align-items:flex-start;margin-bottom:var(--s-3)' }, [
+        el('span', { style: 'font-size:19px;line-height:1.3' }, [icon]),
+        el('span', { class: 'grow' }, text),
+      ]);
+
+    const points = el('div', {}, [
+      point('📱', [
+        'This lives on ', el('strong', {}, ['this phone']),
+        `. Hand it to ${name} when it's their turn.`,
+      ]),
+      point('☁️', [
+        // syncEnabled only means Firebase is configured; a parent who skipped
+        // or failed sign-in has no account to sync to. Promising sync here
+        // would be a claim the code cannot keep.
+        store.syncEnabled && store.user
+          ? 'Their progress syncs to your account, so a new phone can pick up where they left off.'
+          : "Their progress is saved on this device. Sign in later and it'll sync to your account.",
+      ]),
+      point('🔒', [
+        'A parent PIN keeps them out of the screens where plans and progress live.',
+      ]),
+    ]);
+
+    const go = el('button', { class: 'btn', type: 'button' }, ['Set a parent PIN']);
+    on(go, 'click', () => { if (onSetPin) onSetPin(); else done(); });
+
+    const later = el('button', { class: 'btn btn--link', type: 'button' },
+      [`Not now — start with ${name}`]);
+    on(later, 'click', done);
+
+    screen([
+      dots(),
+      el('div', { class: 'eyebrow' }, [`Step ${TOTAL} of ${TOTAL}`]),
+      el('h2', {}, [`${name} is all set`]),
+      el('p', {}, ['One thing before you go.']),
+      points,
+      // The PIN is optional. Skipping it is a supported path, not a lesser one.
+      ...(onSetPin ? [go] : []),
+      later,
     ]);
   }
 

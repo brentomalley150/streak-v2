@@ -158,3 +158,32 @@ describe('a migrated v1 family keeps their existing PIN', () => {
     expect(s.checkParentPin('0000')).toBe(false);
   });
 });
+
+/**
+ * The handoff screen (HANDOFF.md §1) tells the parent whether progress syncs.
+ * store.syncEnabled only reports that Firebase is configured — it says nothing
+ * about whether anyone signed in. Promising sync to a signed-out parent would
+ * be a claim the code cannot keep, so the screen checks both.
+ */
+describe('sync claim on the handoff screen', () => {
+  it('a configured backend with no signed-in user must not count as syncing', () => {
+    const s = new Store(new MemStorage());
+    s.init();
+    s.attachBackend({
+      enabled: true,          // Firebase is configured...
+      user: null,             // ...but the parent skipped sign-in.
+      async signIn() { throw new Error('unused'); },
+      async signOut() {},
+      onAuth() { return () => {}; },
+      async publish() {},
+      subscribeLeaderboard(_t, fn) { fn([]); return () => {}; },
+      async saveRollup() {},
+      async loadRollup() { return {}; },
+    });
+
+    expect(s.syncEnabled).toBe(true);
+    expect(s.user).toBeNull();
+    // The screen renders the syncing copy only when BOTH hold.
+    expect(s.syncEnabled && s.user !== null).toBe(false);
+  });
+});

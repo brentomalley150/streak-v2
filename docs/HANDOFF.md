@@ -5,8 +5,8 @@ Status: **partly built.** Written 2026-08-29.
 - §2 Parent PIN — **shipped**. v1 hash compatibility is pinned by tests against
   hashes v1 itself produced, so a migrated family keeps their existing PIN.
 - §3 Profile switcher — **shipped** (see `ROLLUP.md`; it landed with FR6).
-- §1 Handoff screen and §4 Restore — still unbuilt. The handoff screen is the
-  piece that actually answers "how does the parent give this to their kid?".
+- §1 Handoff screen — **shipped** as step 7 of onboarding.
+- §4 Restore on a new device — still unbuilt.
 
 ## The problem
 

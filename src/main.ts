@@ -50,7 +50,9 @@ function draw(view: View): void {
   // 'addKid' is onboarding run again for an additional child. addProfile
   // appends and switches, so the existing kids' data is untouched.
   if (view === 'onboarding' || view === 'addKid') {
-    renderOnboarding(root!, store, () => show('daily'));
+    // The handoff step can route straight into PIN setup. setPin returns to
+    // the daily screen either way, so onboarding is never re-entered.
+    renderOnboarding(root!, store, () => show('daily'), () => show('setPin'));
   } else if (view === 'marketplace') renderMarketplace(root!, store, () => show('daily'));
   else if (view === 'digest') renderDigest(root!, store, () => show('daily'));
   else if (view === 'rollup') renderRollup(root!, store, () => show('daily'));
