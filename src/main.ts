@@ -24,16 +24,22 @@ void createBackend().then((b) => {
 });
 const { migrated } = store.init();
 
-type View = 'onboarding' | 'daily' | 'marketplace' | 'digest';
+type View = 'onboarding' | 'daily' | 'marketplace' | 'digest' | 'addKid';
 
 let current: View = 'onboarding';
 
 function show(view: View): void {
   current = view;
-  if (view === 'onboarding') renderOnboarding(root!, store, () => show('daily'));
-  else if (view === 'marketplace') renderMarketplace(root!, store, () => show('daily'));
+  // 'addKid' is onboarding run again for an additional child. addProfile
+  // appends and switches, so the existing kids' data is untouched.
+  if (view === 'onboarding' || view === 'addKid') {
+    renderOnboarding(root!, store, () => show('daily'));
+  } else if (view === 'marketplace') renderMarketplace(root!, store, () => show('daily'));
   else if (view === 'digest') renderDigest(root!, store, () => show('daily'));
-  else renderDaily(root!, store, () => show('marketplace'), () => show('digest'));
+  else {
+    renderDaily(root!, store, () => show('marketplace'), () => show('digest'),
+      () => show('addKid'));
+  }
 }
 
 // A migrated v1 family lands straight in the game with their data intact.

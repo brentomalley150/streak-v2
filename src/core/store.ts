@@ -161,7 +161,12 @@ export class Store {
     // millisecond, and a duplicate id makes the second kid unreachable:
     // `profile` resolves by find(), so it always returns the first match.
     // A counter suffix keeps ids unique without depending on wall-clock gaps.
-    const id = `p_${Date.now().toString(36)}_${(this.seq++).toString(36)}`;
+    // A reload resets seq to 0, so the counter alone is not enough: bump past
+    // anything already stored until the id is genuinely unused.
+    let id = `p_${Date.now().toString(36)}_${(this.seq++).toString(36)}`;
+    while (this.profiles.some((x) => x.id === id)) {
+      id = `p_${Date.now().toString(36)}_${(this.seq++).toString(36)}`;
+    }
     const p = newProfile(id, name);
     this.profiles.push(p);
     this.currentId = p.id;

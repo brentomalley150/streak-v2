@@ -11,6 +11,7 @@ import { el, clear, on } from './dom.js';
 import { leaderboardKey, type LeaderboardRow } from '../core/sync.js';
 
 let menuOpen = false;
+let kidMenuOpen = false;
 let unsubscribeLeaderboard: (() => void) | null = null;
 
 function toast(msg: string): void {
@@ -22,7 +23,7 @@ function toast(msg: string): void {
 
 export function renderDaily(
   root: HTMLElement, store: Store,
-  onMarketplace: () => void, onDigest?: () => void,
+  onMarketplace: () => void, onDigest?: () => void, onAddKid?: () => void,
 ): void {
   const s = store.state;
   const t: TrackState | null = store.activeTrack;
@@ -44,6 +45,59 @@ export function renderDaily(
     el('span', { class: 'chip chip--rank' }, [`${stats.rank.piece} ${stats.rank.name}`]),
   ]));
 
+  // Kid switcher. Only shown for a family with more than one kid — a
+  // single-kid family gains nothing from a menu of one, and the daily screen
+  // is the kid's own surface, so it stays as plain as possible.
+  if (store.all.length > 1) {
+    const who = el('button', {
+      class: 'switcher', type: 'button', 'aria-expanded': String(kidMenuOpen),
+    }, [
+      el('span', { class: 'row' }, [
+        el('span', { style: 'font-size:19px' }, [s.playerAvatar || '🙂']),
+        el('span', {}, [s.playerName || 'This kid']),
+      ]),
+      el('span', { class: 'muted', style: 'font-weight:700' }, [kidMenuOpen ? '▲ Switch kid' : '▼ Switch kid']),
+    ]);
+    on(who, 'click', () => {
+      kidMenuOpen = !kidMenuOpen;
+      renderDaily(root, store, onMarketplace, onDigest, onAddKid);
+    });
+    screen.append(who);
+
+    if (kidMenuOpen) {
+      const kids = el('div', { class: 'menu' });
+      for (const p of store.all) {
+        const active = p.id === s.profileId;
+        const tracks = Object.keys(p.state.tracks).length;
+        const b = el('button', { type: 'button', 'aria-current': String(active) }, [
+          el('span', {}, [p.state.playerAvatar || '🙂']),
+          el('span', {}, [p.state.playerName || 'Unnamed']),
+          el('span', { class: 'meta' }, [tracks === 1 ? '1 track' : `${tracks} tracks`]),
+        ]);
+        on(b, 'click', () => {
+          kidMenuOpen = false;
+          if (p.id === s.profileId) { renderDaily(root, store, onMarketplace, onDigest, onAddKid); return; }
+          store.switchProfile(p.id);
+          // Close the track menu too: it was showing the previous kid's tracks.
+          menuOpen = false;
+          renderDaily(root, store, onMarketplace, onDigest, onAddKid);
+          toast(`Switched to ${p.state.playerName || 'this kid'}`);
+        });
+        kids.append(b);
+      }
+      // Onboarding is the only thing that creates a profile, so adding a kid
+      // means running it again. It appends rather than replaces, so the first
+      // kid's data is untouched.
+      if (onAddKid) {
+        const add = el('button', { type: 'button', style: 'color:var(--purple);font-weight:800' },
+          [el('span', {}, ['＋']), el('span', {}, ['Add a kid'])]);
+        on(add, 'click', () => { kidMenuOpen = false; onAddKid(); });
+        kids.append(add);
+      }
+      screen.append(kids);
+    }
+  }
+
   // track switcher (FR3)
   const sw = el('button', { class: 'switcher', type: 'button', 'aria-expanded': String(menuOpen) }, [
     el('span', { class: 'row' }, [
@@ -52,7 +106,7 @@ export function renderDaily(
     ]),
     el('span', { class: 'muted', style: 'font-weight:700' }, [menuOpen ? '▲ Switch' : '▼ Switch']),
   ]);
-  on(sw, 'click', () => { menuOpen = !menuOpen; renderDaily(root, store, onMarketplace, onDigest); });
+  on(sw, 'click', () => { menuOpen = !menuOpen; renderDaily(root, store, onMarketplace, onDigest, onAddKid); });
   screen.append(sw);
 
   if (menuOpen) {
@@ -67,7 +121,7 @@ export function renderDaily(
       ]);
       on(b, 'click', () => {
         store.setActiveTrack(id); menuOpen = false;
-        renderDaily(root, store, onMarketplace, onDigest); toast(`Switched to ${d.name}`);
+        renderDaily(root, store, onMarketplace, onDigest, onAddKid); toast(`Switched to ${d.name}`);
       });
       menu.append(b);
     }
@@ -107,7 +161,7 @@ export function renderDaily(
       el('span', { class: 'label' }, [a.label]),
       ...(doneNow ? [el('span', { class: 'done' }, ['✓ Done'])] : []),
     ]);
-    on(b, 'click', () => { store.toggle(String(a.id)); renderDaily(root, store, onMarketplace, onDigest); });
+    on(b, 'click', () => { store.toggle(String(a.id)); renderDaily(root, store, onMarketplace, onDigest, onAddKid); });
     acts.append(b);
   }
   screen.append(acts);

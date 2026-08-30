@@ -116,3 +116,72 @@ describe('FR6 — the rollup must cover every kid, not just the active one', () 
     expect(store.profile?.id).toBe(sophie);
   });
 });
+
+describe('switching profiles — the second kid must be reachable', () => {
+  it('gives each kid a distinct id even when added in the same millisecond', () => {
+    const a = store.addProfile('Declan').id;
+    const b = store.addProfile('Sophie').id;
+    expect(a).not.toBe(b);
+    expect(store.all).toHaveLength(2);
+  });
+
+  it('resolves the active profile to the kid actually switched to', () => {
+    const declan = store.addProfile('Declan').id;
+    store.addProfile('Sophie');
+
+    store.switchProfile(declan);
+
+    expect(store.profile?.id).toBe(declan);
+    expect(store.state?.playerName).toBe('Declan');
+  });
+
+  it('keeps each kid on their own track', () => {
+    const declan = store.addProfile('Declan').id;
+    store.enroll('reading-slide', 'chess');
+    const sophie = store.addProfile('Sophie').id;
+    store.enroll('math-facts', 'sports');
+
+    store.switchProfile(declan);
+    expect(store.activeTrack?.trackId).toBe('reading-slide');
+
+    store.switchProfile(sophie);
+    expect(store.activeTrack?.trackId).toBe('math-facts');
+  });
+
+  it('ignores a switch to an unknown id rather than blanking the app', () => {
+    const declan = store.addProfile('Declan').id;
+
+    store.switchProfile('p_does_not_exist');
+
+    expect(store.profile?.id).toBe(declan);
+  });
+
+  it('survives a reload — the chosen kid is still active', () => {
+    store.addProfile('Declan');
+    const sophie = store.addProfile('Sophie').id;
+    store.switchProfile(sophie);
+
+    const reloaded = new Store(ls);
+    reloaded.init();
+
+    expect(reloaded.profile?.id).toBe(sophie);
+    expect(reloaded.state?.playerName).toBe('Sophie');
+  });
+});
+
+describe('profile ids survive a reload', () => {
+  it('does not reuse an id after the session counter resets', () => {
+    store.addProfile('Declan');
+    const firstIds = store.all.map((p) => p.id);
+
+    // A reload starts a fresh Store with seq back at 0. Ids must still differ
+    // from the ones already persisted, or the new kid shadows an existing one.
+    const reloaded = new Store(ls);
+    reloaded.init();
+    reloaded.addProfile('Sophie');
+
+    const ids = reloaded.all.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(expect.arrayContaining(firstIds));
+  });
+});
