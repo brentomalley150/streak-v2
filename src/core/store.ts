@@ -9,7 +9,7 @@ import { todayKey, toggleActivity, getEntry } from './engine.js';
 import {
   loadProfiles, saveProfiles, currentProfileId, setCurrentProfileId, migrate,
 } from './storage.js';
-import type { AuthUser, Backend, LeaderboardRow } from './sync.js';
+import type { AuthUser, Backend, FamilyRollup, LeaderboardRow } from './sync.js';
 import { buildRow } from './sync.js';
 import { LADDERS } from '../tracks/ladders.js';
 
@@ -172,6 +172,16 @@ export class Store {
     this.currentId = p.id;
     this.emit();
     return p;
+  }
+
+  /**
+   * The family's rollup for the parent view (FR6). Yields {} with no backend,
+   * signed out, or offline — the view renders local profiles regardless.
+   */
+  async loadRollup(): Promise<FamilyRollup> {
+    const b = this.backend;
+    if (!b?.enabled || !b.user) return {};
+    return b.loadRollup();
   }
 
   switchProfile(id: string): void {

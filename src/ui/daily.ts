@@ -24,6 +24,7 @@ function toast(msg: string): void {
 export function renderDaily(
   root: HTMLElement, store: Store,
   onMarketplace: () => void, onDigest?: () => void, onAddKid?: () => void,
+  onRollup?: () => void,
 ): void {
   const s = store.state;
   const t: TrackState | null = store.activeTrack;
@@ -60,7 +61,7 @@ export function renderDaily(
     ]);
     on(who, 'click', () => {
       kidMenuOpen = !kidMenuOpen;
-      renderDaily(root, store, onMarketplace, onDigest, onAddKid);
+      renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup);
     });
     screen.append(who);
 
@@ -76,11 +77,11 @@ export function renderDaily(
         ]);
         on(b, 'click', () => {
           kidMenuOpen = false;
-          if (p.id === s.profileId) { renderDaily(root, store, onMarketplace, onDigest, onAddKid); return; }
+          if (p.id === s.profileId) { renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup); return; }
           store.switchProfile(p.id);
           // Close the track menu too: it was showing the previous kid's tracks.
           menuOpen = false;
-          renderDaily(root, store, onMarketplace, onDigest, onAddKid);
+          renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup);
           toast(`Switched to ${p.state.playerName || 'this kid'}`);
         });
         kids.append(b);
@@ -106,7 +107,7 @@ export function renderDaily(
     ]),
     el('span', { class: 'muted', style: 'font-weight:700' }, [menuOpen ? '▲ Switch' : '▼ Switch']),
   ]);
-  on(sw, 'click', () => { menuOpen = !menuOpen; renderDaily(root, store, onMarketplace, onDigest, onAddKid); });
+  on(sw, 'click', () => { menuOpen = !menuOpen; renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup); });
   screen.append(sw);
 
   if (menuOpen) {
@@ -121,7 +122,7 @@ export function renderDaily(
       ]);
       on(b, 'click', () => {
         store.setActiveTrack(id); menuOpen = false;
-        renderDaily(root, store, onMarketplace, onDigest, onAddKid); toast(`Switched to ${d.name}`);
+        renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup); toast(`Switched to ${d.name}`);
       });
       menu.append(b);
     }
@@ -161,7 +162,7 @@ export function renderDaily(
       el('span', { class: 'label' }, [a.label]),
       ...(doneNow ? [el('span', { class: 'done' }, ['✓ Done'])] : []),
     ]);
-    on(b, 'click', () => { store.toggle(String(a.id)); renderDaily(root, store, onMarketplace, onDigest, onAddKid); });
+    on(b, 'click', () => { store.toggle(String(a.id)); renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup); });
     acts.append(b);
   }
   screen.append(acts);
@@ -247,6 +248,15 @@ export function renderDaily(
       ["📋 This week's summary (for parents)"]);
     on(pd, 'click', onDigest);
     screen.append(pd);
+  }
+
+  // Cross-kid view (FR6). Pointless for a one-kid one-track family, so it only
+  // appears once there is more than one thing to compare.
+  if (onRollup && (store.all.length > 1 || Object.keys(s.tracks).length > 1)) {
+    const fam = el('button', { class: 'btn btn--ghost', type: 'button', style: 'margin-bottom:var(--s-2)' },
+      ['👨‍👩‍👧 Everyone at a glance (for parents)']);
+    on(fam, 'click', onRollup);
+    screen.append(fam);
   }
 
   // add-a-track affordance, gated by FR7

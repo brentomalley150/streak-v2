@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Store } from './store.js';
-import type { Backend, AuthUser, LeaderboardRow } from './sync.js';
+import { buildFamilyRollup, relativeTime } from './rollup.js';
+import type { Profile } from './types.js';
+import type { Backend, AuthUser, FamilyRollup, LeaderboardRow } from './sync.js';
 
 /** Minimal in-memory Storage so tests need no DOM. */
 class MemStorage implements Storage {
@@ -37,6 +39,8 @@ class RecordingBackend implements Backend {
   async saveRollup(profileId: string, rows: LeaderboardRow[]): Promise<void> {
     this.rollups.push({ profileId, trackIds: rows.map((r) => String(r.trackId)) });
   }
+  stored: FamilyRollup = {};
+  async loadRollup(): Promise<FamilyRollup> { return this.stored; }
 }
 
 /**
@@ -183,5 +187,101 @@ describe('profile ids survive a reload', () => {
     const ids = reloaded.all.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(expect.arrayContaining(firstIds));
+  });
+});
+
+describe('buildFamilyRollup — merging local truth with the family rollup', () => {
+  function familyOf(...kids: Array<[string, string[]]>): Profile[] {
+    const s = new Store(new MemStorage());
+    s.init();
+    for (const [name, trackIds] of kids) {
+      s.addProfile(name);
+      for (const t of trackIds) s.enroll(t, 'chess');
+    }
+    return [...s.all];
+  }
+
+  it('lists every kid, with every track they have on this device', () => {
+    const profiles = familyOf(['Declan', ['reading-slide']], ['Sophie', ['math-facts']]);
+
+    const rows = buildFamilyRollup(profiles, {});
+
+    expect(rows.map((k) => k.name)).toEqual(['Declan', 'Sophie']);
+    expect(rows[0]!.tracks.map((t) => t.trackId)).toEqual(['reading-slide']);
+    expect(rows[1]!.tracks.map((t) => t.trackId)).toEqual(['math-facts']);
+  });
+
+  it('works with no rollup at all — a parent offline still sees the family', () => {
+    const profiles = familyOf(['Declan', ['reading-slide']]);
+
+    const rows = buildFamilyRollup(profiles, {});
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.tracks[0]!.remoteOnly).toBe(false);
+    expect(rows[0]!.tracks[0]!.lastSeen).toBeNull();
+  });
+
+  it('surfaces a track the kid only does on another device', () => {
+    const profiles = familyOf(['Declan', ['reading-slide']]);
+    const id = profiles[0]!.state.profileId;
+    const remote: FamilyRollup = {
+      [id]: {
+        'math-facts': { trackId: 'math-facts', points: 40, currentStreak: 3, rank: 'Level 2', lastSeen: 1000 },
+      },
+    };
+
+    const rows = buildFamilyRollup(profiles, remote);
+
+    const math = rows[0]!.tracks.find((t) => t.trackId === 'math-facts')!;
+    expect(math.remoteOnly).toBe(true);
+    expect(math.points).toBe(40);
+  });
+
+  it('prefers this device over the rollup for a track held locally', () => {
+    const profiles = familyOf(['Declan', ['reading-slide']]);
+    const id = profiles[0]!.state.profileId;
+    // Stale remote numbers for a track this device also has.
+    const remote: FamilyRollup = {
+      [id]: {
+        'reading-slide': { trackId: 'reading-slide', points: 999, currentStreak: 99, rank: 'King', lastSeen: 5 },
+      },
+    };
+
+    const rows = buildFamilyRollup(profiles, remote);
+
+    const reading = rows[0]!.tracks.find((t) => t.trackId === 'reading-slide')!;
+    expect(reading.remoteOnly).toBe(false);
+    expect(reading.points).toBe(0);      // local truth, not the stale 999
+    expect(reading.lastSeen).toBe(5);    // freshness can only come from remote
+  });
+
+  it('does not mutate the profiles it reads', () => {
+    const profiles = familyOf(['Declan', ['reading-slide']]);
+    const before = JSON.stringify(profiles);
+
+    buildFamilyRollup(profiles, {});
+
+    expect(JSON.stringify(profiles)).toBe(before);
+  });
+});
+
+describe('relativeTime — never renders a zero for "no data"', () => {
+  const now = 1_000_000_000;
+
+  it('returns null when nothing has synced, so the view must say something else', () => {
+    expect(relativeTime(null, now)).toBeNull();
+  });
+
+  it('reads in units a parent scans', () => {
+    expect(relativeTime(now - 30_000, now)).toBe('just now');
+    expect(relativeTime(now - 5 * 60_000, now)).toBe('5m ago');
+    expect(relativeTime(now - 3 * 3_600_000, now)).toBe('3h ago');
+    expect(relativeTime(now - 26 * 3_600_000, now)).toBe('yesterday');
+    expect(relativeTime(now - 3 * 86_400_000, now)).toBe('3d ago');
+    expect(relativeTime(now - 9 * 86_400_000, now)).toBe('a week ago');
+  });
+
+  it('treats a clock skewed into the future as now, not a negative age', () => {
+    expect(relativeTime(now + 60_000, now)).toBe('just now');
   });
 });

@@ -37,6 +37,22 @@ export interface AuthUser {
   displayName: string;
 }
 
+/**
+ * One track's slice of a kid's rollup, as saveRollup writes it. Deliberately
+ * narrower than LeaderboardRow: the parent view needs progress, not the
+ * published name and avatar that the leaderboard carries.
+ */
+export interface RollupEntry {
+  trackId: string;
+  points: number;
+  currentStreak: number;
+  rank: string;
+  lastSeen: number;
+}
+
+/** profileId -> trackId -> entry, exactly the shape stored under the family. */
+export type FamilyRollup = Record<string, Record<string, RollupEntry>>;
+
 export interface Backend {
   readonly enabled: boolean;
   readonly user: AuthUser | null;
@@ -46,6 +62,8 @@ export interface Backend {
   publish(row: LeaderboardRow): Promise<void>;
   subscribeLeaderboard(trackId: string, fn: (rows: LeaderboardRow[]) => void): () => void;
   saveRollup(profileId: string, rows: LeaderboardRow[]): Promise<void>;
+  /** Every kid, every track, one read. `{}` when signed out or offline. */
+  loadRollup(): Promise<FamilyRollup>;
 }
 
 /** `${googleUid}_${profileId}` — one slot per kid, siblings distinct. */
@@ -123,4 +141,5 @@ export class NullBackend implements Backend {
     fn([]); return () => {};
   }
   async saveRollup(): Promise<void> { /* nothing to do */ }
+  async loadRollup(): Promise<FamilyRollup> { return {}; }
 }

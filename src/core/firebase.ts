@@ -8,7 +8,7 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Database } from 'firebase/database';
-import type { AuthUser, Backend, LeaderboardRow } from './sync.js';
+import type { AuthUser, Backend, FamilyRollup, LeaderboardRow } from './sync.js';
 import { NullBackend } from './sync.js';
 
 function readConfig(): Record<string, string> | null {
@@ -36,6 +36,7 @@ type Sdk = {
   set: typeof import('firebase/database')['set'];
   update: typeof import('firebase/database')['update'];
   onValue: typeof import('firebase/database')['onValue'];
+  get: typeof import('firebase/database')['get'];
   serverTimestamp: typeof import('firebase/database')['serverTimestamp'];
 };
 
@@ -114,6 +115,22 @@ class FirebaseBackend implements Backend {
     }
     await this.sdk.update(this.sdk.ref(this.db, `v2/families/${this.user.uid}/rollup/${profileId}`), byTrack);
   }
+
+  /**
+   * One-shot read of the whole family (FR6). A glance-at parent screen, so a
+   * single get beats holding a listener open. A failure yields {} — the view
+   * falls back to local profiles rather than showing an error for a screen
+   * that is mostly local data anyway.
+   */
+  async loadRollup(): Promise<FamilyRollup> {
+    if (!this.user) return {};
+    try {
+      const snap = await this.sdk.get(this.sdk.ref(this.db, `v2/families/${this.user.uid}/rollup`));
+      return (snap.val() ?? {}) as FamilyRollup;
+    } catch {
+      return {};
+    }
+  }
 }
 
 /**
@@ -135,7 +152,7 @@ export async function createBackend(): Promise<Backend> {
       signInWithPopup: auth.signInWithPopup, fbSignOut: auth.signOut,
       onAuthStateChanged: auth.onAuthStateChanged,
       getDatabase: db.getDatabase, ref: db.ref, set: db.set, update: db.update,
-      onValue: db.onValue, serverTimestamp: db.serverTimestamp,
+      onValue: db.onValue, get: db.get, serverTimestamp: db.serverTimestamp,
     };
     return new FirebaseBackend(app.initializeApp(cfg), sdk);
   } catch (err) {

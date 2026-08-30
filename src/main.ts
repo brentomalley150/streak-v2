@@ -8,6 +8,7 @@ import { createBackend } from './core/firebase.js';
 import { renderOnboarding } from './ui/onboarding.js';
 import { renderDaily, renderMarketplace } from './ui/daily.js';
 import { renderDigest } from './ui/digest.js';
+import { renderRollup } from './ui/rollup.js';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('#app not found');
@@ -24,7 +25,7 @@ void createBackend().then((b) => {
 });
 const { migrated } = store.init();
 
-type View = 'onboarding' | 'daily' | 'marketplace' | 'digest' | 'addKid';
+type View = 'onboarding' | 'daily' | 'marketplace' | 'digest' | 'addKid' | 'rollup';
 
 let current: View = 'onboarding';
 
@@ -36,9 +37,10 @@ function show(view: View): void {
     renderOnboarding(root!, store, () => show('daily'));
   } else if (view === 'marketplace') renderMarketplace(root!, store, () => show('daily'));
   else if (view === 'digest') renderDigest(root!, store, () => show('daily'));
+  else if (view === 'rollup') renderRollup(root!, store, () => show('daily'));
   else {
     renderDaily(root!, store, () => show('marketplace'), () => show('digest'),
-      () => show('addKid'));
+      () => show('addKid'), () => show('rollup'));
   }
 }
 
