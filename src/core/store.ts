@@ -248,7 +248,13 @@ export class Store {
       (u.displayName || 'A parent').split(' ')[0]!,
       Date.now(),
     );
-    await b.createGroup(g);
+    try {
+      await b.createGroup(g);
+    } catch {
+      // Most likely the groups rules are not deployed. Null lets the UI say
+      // something useful instead of leaving a spinner on screen.
+      return null;
+    }
     return g;
   }
 
@@ -268,11 +274,15 @@ export class Store {
     const key = this.leaderboardKeyFor(profileId);
     const p = profileId ? this.profiles.find((x) => x.id === profileId) : this.profile;
     if (!b?.enabled || !key || !p || !group.meta.open) return false;
-    await b.joinGroup(group.id, key, {
-      name: p.state.playerName || 'Unnamed',
-      avatar: p.state.playerAvatar || '🙂',
-      joinedAt: Date.now(),
-    });
+    try {
+      await b.joinGroup(group.id, key, {
+        name: p.state.playerName || 'Unnamed',
+        avatar: p.state.playerAvatar || '🙂',
+        joinedAt: Date.now(),
+      });
+    } catch {
+      return false;
+    }
     return true;
   }
 

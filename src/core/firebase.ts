@@ -130,9 +130,17 @@ class FirebaseBackend implements Backend {
    */
   async createGroup(group: Group): Promise<void> {
     if (!this.user) return;
-    await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${group.id}`), {
-      meta: group.meta, members: group.members ?? {},
-    });
+    // A rejected write must surface as a failure the UI can explain, not an
+    // unhandled rejection — most likely cause is the groups rules not being
+    // deployed yet, which looks identical to any other permission denial.
+    try {
+      await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${group.id}`), {
+        meta: group.meta, members: group.members ?? {},
+      });
+    } catch (err) {
+      console.warn('[beat-the-slide] could not create the challenge.', err);
+      throw err;
+    }
   }
 
   async loadGroup(groupId: string): Promise<Group | null> {
@@ -149,7 +157,12 @@ class FirebaseBackend implements Backend {
 
   async joinGroup(groupId: string, key: string, member: GroupMember): Promise<void> {
     if (!this.user) return;
-    await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${groupId}/members/${key}`), member);
+    try {
+      await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${groupId}/members/${key}`), member);
+    } catch (err) {
+      console.warn('[beat-the-slide] could not join the challenge.', err);
+      throw err;
+    }
   }
 
   async leaveGroup(groupId: string, key: string): Promise<void> {
