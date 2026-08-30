@@ -44,6 +44,36 @@ export function renderCreateGroup(root: HTMLElement, store: Store, back: () => v
   const err = el('p', { class: 'muted', style: 'margin:0 0 var(--s-2);min-height:1.2em' }, ['']);
   const create = el('button', { class: 'btn', type: 'button' }, ['Create & get the link']);
 
+  /**
+   * A challenge needs an owner, so this is unusable signed out. Say so up front
+   * and offer the sign-in here — onboarding used to be the app's only sign-in,
+   * so telling someone to "sign in first" pointed at nothing they could do.
+   */
+  const signedOutNotice = (): HTMLElement | null => {
+    if (!store.syncEnabled) {
+      return el('p', { class: 'muted' }, ['Creating a challenge needs an internet connection.']);
+    }
+    if (store.user) return null;
+    const wrap = el('div', { class: 'mod' }, [
+      el('div', { class: 'head' }, ['Sign in to continue']),
+      el('p', { style: 'margin:0 0 var(--s-2)' }, ['A challenge belongs to your account, so other families know who invited them.']),
+    ]);
+    const go = el('button', { class: 'btn', type: 'button' }, ['Sign in with Google']);
+    on(go, 'click', () => {
+      go.disabled = true;
+      go.textContent = 'Signing in…';
+      void store.signIn()
+        .then(() => renderCreateGroup(root, store, back))
+        .catch(() => {
+          go.disabled = false;
+          go.textContent = 'Sign in with Google';
+          err.textContent = "Couldn't sign in. Try again, or check your connection.";
+        });
+    });
+    wrap.append(go);
+    return wrap;
+  };
+
   on(create, 'click', () => {
     if (!name.value.trim()) { err.textContent = 'Give it a name so kids know what they joined.'; return; }
     create.disabled = true;
@@ -65,16 +95,26 @@ export function renderCreateGroup(root: HTMLElement, store: Store, back: () => v
   const cancel = el('button', { class: 'btn btn--link', type: 'button' }, ['← Back']);
   on(cancel, 'click', () => { document.documentElement.dataset['surface'] = 'kid'; back(); });
 
+  const blocked = signedOutNotice();
+
   screen.append(
     el('div', { class: 'eyebrow' }, ['For parents & teachers']),
     el('h2', {}, ['Start a challenge']),
     el('p', {}, ['Kids you invite share one leaderboard for this track. Nothing else is shared.']),
-    el('label', { class: 'field' }, [el('span', {}, ['Name it']), name]),
-    el('label', { class: 'field' }, [el('span', {}, ['Which track'])]), picker,
-    err, create, cancel,
   );
+
+  if (blocked) {
+    // Don't make someone fill in a form that cannot succeed.
+    screen.append(blocked, err, cancel);
+  } else {
+    screen.append(
+      el('label', { class: 'field' }, [el('span', {}, ['Name it']), name]),
+      el('label', { class: 'field' }, [el('span', {}, ['Which track'])]), picker,
+      err, create, cancel,
+    );
+  }
   root.append(screen);
-  name.focus();
+  if (!blocked) name.focus();
 }
 
 /** The share screen — the link is the whole point, so it dominates. */
@@ -155,7 +195,18 @@ export function renderJoinGroup(
 
     if (!store.user) {
       // Joining writes under this family's own key, so it needs their account.
-      screen.append(el('p', { class: 'muted' }, ['Sign in first so this challenge is linked to your family.']));
+      // Offer the sign-in here: onboarding is otherwise the app's only one, and
+      // an invited parent arrives long after they finished it.
+      screen.append(el('p', { class: 'muted' }, ['Sign in so this challenge is linked to your family.']));
+      const go = el('button', { class: 'btn', type: 'button' }, ['Sign in with Google']);
+      on(go, 'click', () => {
+        go.disabled = true;
+        go.textContent = 'Signing in…';
+        void store.signIn()
+          .then(() => renderJoinGroup(root, store, code, done))
+          .catch(() => { go.disabled = false; go.textContent = 'Sign in with Google'; toast("Couldn't sign in"); });
+      });
+      screen.append(go);
     } else if (!kids.length) {
       screen.append(el('p', { class: 'muted' }, ['Set your kid up first, then open this link again.']));
     } else {
