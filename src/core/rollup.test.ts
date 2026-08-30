@@ -285,3 +285,35 @@ describe('relativeTime — never renders a zero for "no data"', () => {
     expect(relativeTime(now + 60_000, now)).toBe('just now');
   });
 });
+
+/**
+ * A one-kid family must be able to become a two-kid family.
+ *
+ * "Add a kid" originally lived only inside the kid switcher, which is hidden
+ * until a family has 2+ kids — so the only route to a second kid required
+ * already having one. The affordance now sits outside that menu; these assert
+ * the store side works from a single-kid family, which is the state a real
+ * parent is in when they go looking for it.
+ */
+describe('a one-kid family can add a second', () => {
+  it('appends a second kid without disturbing the first', () => {
+    store.addProfile('Declan');
+    store.enroll('reading-slide', 'chess');
+    const declan = store.profile!.id;
+    expect(store.all).toHaveLength(1);
+
+    store.addProfile('Sophie');
+    store.enroll('math-facts', 'sports');
+
+    expect(store.all).toHaveLength(2);
+    const first = store.all.find((p) => p.id === declan)!;
+    expect(first.state.playerName).toBe('Declan');
+    expect(Object.keys(first.state.tracks)).toEqual(['reading-slide']);
+  });
+
+  it('leaves the new kid active, so onboarding lands on them', () => {
+    store.addProfile('Declan');
+    store.addProfile('Sophie');
+    expect(store.profile?.state.playerName).toBe('Sophie');
+  });
+});

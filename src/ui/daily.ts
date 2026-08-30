@@ -49,6 +49,10 @@ export function renderDaily(
   // Kid switcher. Only shown for a family with more than one kid — a
   // single-kid family gains nothing from a menu of one, and the daily screen
   // is the kid's own surface, so it stays as plain as possible.
+  //
+  // "Add a kid" must NOT live only in here: gating the sole way to create a
+  // second kid behind already having one makes it unreachable. It has its own
+  // entry among the parent actions below.
   if (store.all.length > 1) {
     const who = el('button', {
       class: 'switcher', type: 'button', 'aria-expanded': String(kidMenuOpen),
@@ -257,6 +261,15 @@ export function renderDaily(
       ['👨‍👩‍👧 Everyone at a glance (for parents)']);
     on(fam, 'click', onRollup);
     screen.append(fam);
+  }
+
+  // Reachable for every family, not just multi-kid ones — this is how a
+  // family becomes multi-kid in the first place.
+  if (onAddKid) {
+    const addKid = el('button', { class: 'btn btn--ghost', type: 'button', style: 'margin-bottom:var(--s-2)' },
+      ['＋ Add another kid (for parents)']);
+    on(addKid, 'click', onAddKid);
+    screen.append(addKid);
   }
 
   if (onSetPin) {
