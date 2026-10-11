@@ -13,18 +13,19 @@ making it a year-round, multi-persona streak platform.
 
 | What | Repo | Live at |
 |---|---|---|
-| **Founders hub** — vision, PRD, prototype, decks | `streak-app` | https://beattheslide.com |
-| **v2 app** (this repo) | `streak-v2` | — |
-| **v1 app** — the live, proven original | `declansummerlearning` (private) | https://beatthesummerslide.com |
+| **v2 app** (this repo) | `streak-v2` | https://beattheslide.com/app/ (a built copy, published from `streak-app`) |
+| **Public site** — landing page + build story | `streak-app` | https://beattheslide.com |
+| **Founders hub** — vision, PRD, proof, decks | `beat-the-slide-hub` (private) | https://beat-the-slide-hub.pages.dev (founders sign in with their email) |
+| **v1 app** — the original SummerStreak | `declansummerlearning` (private) | https://beatthesummerslide.com |
 
 ## Start here
 
-Before writing code, read the product docs in the hub:
+Before writing code, read the product docs in the founders hub (sign-in required):
 
-- **Vision Hub** — https://beattheslide.com
-- **PRD v2.0** — https://beattheslide.com/PRD.html
-- **What we've proven** — https://beattheslide.com/proof.html
-- **Interactive prototype** (9 screens, 3 personas) — https://beattheslide.com/prototype.html
+- **Vision hub** — https://beat-the-slide-hub.pages.dev
+- **PRD v2.0** — https://beat-the-slide-hub.pages.dev/PRD.html
+- **What we've proven** — https://beat-the-slide-hub.pages.dev/proof.html
+- **The live app** — https://beattheslide.com/app/
 
 ## Inherited from v1
 
