@@ -121,6 +121,7 @@ p  { margin: 0 0 var(--s-3); color: var(--soft); }
 
 .bar { height: 7px; background: var(--bg); border-radius: var(--r-pill); overflow: hidden; margin-top: var(--s-2); }
 .bar > i { display: block; height: 100%; background: var(--gold); border-radius: var(--r-pill); }
+.all-tracks { margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--border); font-size: var(--t-caption); font-weight: 800; color: var(--soft); font-variant-numeric: tabular-nums; }
 
 .switcher {
   width: 100%; display: flex; align-items: center; justify-content: space-between;

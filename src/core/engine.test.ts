@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
-  computeStats, currentStreak, longestStreak, pointsForEntry, rankFor,
+  computeStats, trackPoints, allTracksPoints, currentStreak, longestStreak, pointsForEntry, rankFor,
   toggleActivity, makeEntry, weekNumber, canEnroll, canEnrollNow, freeTrackLimit, computeStatColumns, addDays,
 } from './engine.js';
 import { asDateKey, type DayEntry, type Rank, type TrackDefinition, type TrackState } from './types.js';
@@ -137,6 +137,24 @@ describe('computeStats', () => {
     s.weeklyAdjustments[1] = 10;
     s.pointAdjustments = 5;
     expect(computeStats(READING_SLIDE, s, LADDERS['chess']!, d('2026-06-01')).points).toBe(18);
+  });
+});
+
+describe('allTracksPoints', () => {
+  it('sums every track with the same math as each track\'s own points', () => {
+    const reading = stateWith(READING_SLIDE, [['2026-06-01', ['read']]]);
+    reading.pointAdjustments = 456; // a SummerStreak import
+    const math = stateWith(MATH_FACTS, [['2026-06-01', [MATH_FACTS.activities[0]!.id]]]);
+    const defs: Record<string, TrackDefinition> = { [READING_SLIDE.trackId]: READING_SLIDE, [MATH_FACTS.trackId]: MATH_FACTS };
+    const total = allTracksPoints({ [READING_SLIDE.trackId]: reading, [MATH_FACTS.trackId]: math }, (id) => defs[id]!);
+    expect(total).toBe(trackPoints(READING_SLIDE, reading) + trackPoints(MATH_FACTS, math));
+    expect(total).toBe(computeStats(READING_SLIDE, reading, LADDERS['chess']!, d('2026-06-01')).points
+      + computeStats(MATH_FACTS, math, LADDERS['chess']!, d('2026-06-01')).points);
+    expect(trackPoints(READING_SLIDE, reading)).toBeGreaterThan(456);
+  });
+
+  it('is zero with no tracks', () => {
+    expect(allTracksPoints({}, () => READING_SLIDE)).toBe(0);
   });
 });
 

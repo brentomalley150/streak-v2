@@ -240,6 +240,27 @@ export function bonusPoints(def: TrackDefinition, state: TrackState): number {
   return Object.keys(state.bonusCompleted ?? {}).length * per;
 }
 
+/** A track's points: activities, perfect days, weekly and manual adjustments, bonuses. */
+export function trackPoints(rawDef: TrackDefinition, state: TrackState): number {
+  const def = effectiveDef(rawDef, state);
+  const earned = Object.values(state.entries).reduce((s, e) => s + pointsForEntry(def, e), 0);
+  const adjustments = Object.values(state.weeklyAdjustments)
+    .reduce((s, n) => s + n, 0);
+  return earned + adjustments + state.pointAdjustments + bonusPoints(def, state);
+}
+
+/**
+ * A kid's points summed over every track they're on. Personal only: each
+ * track's rank, prizes and leaderboard still run on that track's own points,
+ * so a kid on three tracks is never ranked against one on a single track.
+ */
+export function allTracksPoints(
+  tracks: Readonly<Record<string, TrackState>>,
+  defFor: (trackId: string) => TrackDefinition,
+): number {
+  return Object.entries(tracks).reduce((s, [id, t]) => s + trackPoints(defFor(id), t), 0);
+}
+
 export function computeStats(
   rawDef: TrackDefinition,
   state: TrackState,
@@ -248,10 +269,7 @@ export function computeStats(
 ): TrackStats {
   const def = effectiveDef(rawDef, state);
   const entries = Object.values(state.entries);
-  const earned = entries.reduce((s, e) => s + pointsForEntry(def, e), 0);
-  const adjustments = Object.values(state.weeklyAdjustments)
-    .reduce((s, n) => s + n, 0);
-  const points = earned + adjustments + state.pointAdjustments + bonusPoints(def, state);
+  const points = trackPoints(rawDef, state);
   const { rank, next } = rankFor(ladder, points);
   return {
     points,
