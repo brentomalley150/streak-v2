@@ -100,7 +100,7 @@ Built to the updated PRD (US-9 to US-17, FR20 to FR32):
 - **Reading is read 15 + write 10 + wrap-up 5.** Math is its own track (Math
   Facts). Reading's old Math activity is kept as `retiredActivities`, so every
   point a migrated family earned with it still counts.
-- **Six kid-chosen themes** (chess, sports, gaming, music, animals, dance). The
+- **Nine kid-chosen themes** (chess, sports, gaming, music, animals, dance, art, space, fantasy). The
   rank ladder follows the theme, and every ladder shares v1's thresholds, so
   switching theme renames the rank without moving the kid up or down.
 - **Theme ideas** for each daily activity, rotating daily (`ideas` on a track).

@@ -76,9 +76,40 @@ export const LADDERS: Record<string, readonly Rank[]> = {
     ['Choreographer', '🎬', 'Making the Moves'],
     ['Dance Legend', '👑', 'Legend'],
   ]),
+  art: ladder([
+    ['Doodler', '✏️', 'Just Sketching'],
+    ['Sketcher', '🖍️', 'Finding the Lines'],
+    ['Painter', '🖌️', 'Adding Color'],
+    ['Designer', '📐', 'Making Plans'],
+    ['Artist', '🎨', 'Showing Their Work'],
+    ['Gallery Star', '🖼️', 'On the Wall'],
+    ['Master', '👑', 'Masterpiece'],
+  ]),
+  space: ladder([
+    ['Cadet', '🌍', 'Ready for Launch'],
+    ['Pilot', '🛩️', 'Taking Off'],
+    ['Navigator', '🧭', 'Charting the Stars'],
+    ['Astronaut', '🚀', 'Into Orbit'],
+    ['Commander', '🛰️', 'Leading the Mission'],
+    ['Captain', '🌙', 'Moon Walker'],
+    ['Galaxy Explorer', '🌌', 'Legend'],
+  ]),
+  fantasy: ladder([
+    ['Apprentice', '📜', 'Learning Spells'],
+    ['Squire', '🛡️', 'In Training'],
+    ['Knight', '⚔️', 'Sword Ready'],
+    ['Mage', '🔮', 'Casting Spells'],
+    ['Wizard', '🧙', 'Master of Magic'],
+    ['Dragon Rider', '🐉', 'Riding the Sky'],
+    ['Legend', '👑', 'Hero of the Realm'],
+  ]),
 };
 
-/** The six themes a kid can choose (FR23), in display order. */
+/**
+ * The themes a kid can choose (FR23), in display order. Nine fills the 3 × 3
+ * picker exactly. A theme needs only its ladder: with no ideas of its own, a
+ * theme shows the general ideas.
+ */
 export const THEMES: ReadonlyArray<{ id: string; label: string; icon: string }> = [
   { id: 'chess', label: 'Chess', icon: '♟️' },
   { id: 'sports', label: 'Sports', icon: '⚽' },
@@ -86,6 +117,9 @@ export const THEMES: ReadonlyArray<{ id: string; label: string; icon: string }> 
   { id: 'music', label: 'Music', icon: '🎸' },
   { id: 'animals', label: 'Animals', icon: '🦁' },
   { id: 'dance', label: 'Dance', icon: '💃' },
+  { id: 'art', label: 'Art', icon: '🎨' },
+  { id: 'space', label: 'Space', icon: '🚀' },
+  { id: 'fantasy', label: 'Fantasy', icon: '🏰' },
 ];
 
 export const ALL_THEME_IDS: readonly string[] = THEMES.map((t) => t.id);

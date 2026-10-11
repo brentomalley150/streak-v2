@@ -85,6 +85,24 @@ export const MINDFUL_KID: TrackDefinition = {
         'Reach left as you breathe in, right as you breathe out.',
         'Float your arms up like a ballerina as you breathe in, down as you breathe out.',
       ],
+      art: [
+        'Draw a slow wave in the air: breathe in going up, out going down.',
+        'Imagine a color filling you up as you breathe in, fading as you breathe out.',
+        'Draw a slow spiral while you breathe out.',
+        'Look at a picture and breathe slowly while you find five details.',
+      ],
+      space: [
+        'Rocket breath: breathe in through the countdown, blast out at liftoff.',
+        'Float like an astronaut: slow breath in, slower breath out.',
+        'Breathe in while you picture a star, breathe out while it twinkles.',
+        'Moon breath: in for 4, out for 4, as slow as the moon moves.',
+      ],
+      fantasy: [
+        'Dragon breath: breathe in slowly, then breathe out fire, long and slow.',
+        'Wizard breath: breathe in the magic for 4, hold, breathe it out for 6.',
+        'Breathe slowly like a sleeping dragon guarding its gold.',
+        'Stand tall like a castle tower and take five slow breaths.',
+      ],
     },
     gratitude: {
       '*': [
