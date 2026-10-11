@@ -51,7 +51,7 @@ export const MATH_FACTS: TrackDefinition = {
       chess: ['Multiply the squares: a chessboard is 8 × 8. How many squares?', 'Count the pieces on both sides, then multiply by your favorite number.'],
       sports: ['A team scores 7 points 6 times. What is the score?', 'Work out your shots × points for a pretend game.'],
       gaming: ['Each level has 9 coins. How many after 7 levels?', 'Beat your best time on 10 mixed facts.'],
-      music: ['A song has 4 beats a bar and 12 bars. How many beats?', 'Clap a times table to a beat.'],
+      music: ['A song has 4 beats a measure and 12 measures. How many beats?', 'Clap a times table to a beat.'],
       animals: ['A spider has 8 legs. How many legs on 6 spiders?', 'Count legs on 5 dogs and 3 birds.'],
       dance: ['A routine has 8 counts, done 6 times. How many counts?', 'Do one dance move for every answer you get right.'],
       '*': ['Make up a word problem for a grown-up to solve.'],

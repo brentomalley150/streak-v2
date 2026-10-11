@@ -29,7 +29,7 @@ export const MUSIC_PRACTICE: TrackDefinition = {
     ] },
     { id: asActivityId('listen'), label: 'Listen', icon: '🎧', points: 1, minutes: 5, fields: [] },
     { id: asActivityId('learn'), label: 'Learn', icon: '🎼', points: 3, minutes: 5, fields: [
-      { id: 'newSkill', type: 'text', label: 'New bit', placeholder: 'Scale, chord, bar…' },
+      { id: 'newSkill', type: 'text', label: 'New bit', placeholder: 'Scale, chord, measure…' },
     ] },
   ],
   statColumns: [
@@ -38,7 +38,7 @@ export const MUSIC_PRACTICE: TrackDefinition = {
   ],
   ideas: {
     practice: { '*': [
-      'Start with the hardest bar, not the easiest.',
+      'Start with the hardest measure, not the easiest.',
       'Play it once slowly, once at full speed.',
       'Warm up with a scale before your piece.',
     ] },
@@ -52,7 +52,7 @@ export const MUSIC_PRACTICE: TrackDefinition = {
       '*': ['Listen to something new and say one thing you noticed.'],
     },
     learn: { '*': [
-      'Learn one new bar today.',
+      'Learn one new measure today.',
       'Learn a new chord or note.',
       'Learn the name of a musical sign in your piece.',
     ] },
@@ -60,15 +60,15 @@ export const MUSIC_PRACTICE: TrackDefinition = {
   weeklyChallenges: [
     CH(1, '🎵', 'Warm Up', 'Play every day this week, even for five minutes.'),
     CH(2, '🎧', 'Listen Close', 'Listen to a piece you are learning, played by a pro.'),
-    CH(3, '🐢', 'Slow It Down', 'Play your hardest bar at half speed, ten times.'),
+    CH(3, '🐢', 'Slow It Down', 'Play your hardest measure at half speed, ten times.'),
     CH(4, '🎬', 'Record Yourself', 'Record one minute. Listen back. Note one thing.'),
     CH(5, '👥', 'Play for Someone', 'Perform one piece for a person, not a wall.'),
     CH(6, '🎼', 'Sight Read', 'Try something you have never played before.'),
-    CH(7, '🥁', 'Keep Time', 'Practise with a metronome three days running.'),
+    CH(7, '🥁', 'Keep Time', 'Practice with a metronome three days running.'),
     CH(8, '🎨', 'Make It Yours', 'Change the dynamics of a piece you know well.'),
-    CH(9, '🔁', 'Memorise', 'Learn eight bars by heart.'),
+    CH(9, '🔁', 'Memorize', 'Learn eight measures by heart.'),
     CH(10, '🎤', 'Duet', 'Play along with a recording or another person.'),
-    CH(11, '✍️', 'Write One', 'Make up a four-bar tune of your own.'),
+    CH(11, '✍️', 'Write One', 'Make up a four-measure tune of your own.'),
     CH(12, '🏆', 'Recital', 'Play your best piece for whoever will listen.'),
   ],
   outcomeModel: null,
@@ -92,7 +92,7 @@ export const MUSIC_PRACTICE: TrackDefinition = {
           ],
           learn: [
             'Learn a new rudiment — try a double-stroke roll.',
-            'Learn a new fill to end a four-bar phrase.',
+            'Learn a new fill to end a four-measure phrase.',
             'Learn one new drum notation symbol.',
           ],
         } },
@@ -116,16 +116,16 @@ export const MUSIC_PRACTICE: TrackDefinition = {
       { id: 'piano', label: 'Piano', icon: '🎹',
         activities: {
           practice: { icon: '🎹' },
-          learn: { placeholders: { newSkill: 'Scale, chord, bar…' } },
+          learn: { placeholders: { newSkill: 'Scale, chord, measure…' } },
         },
         ideas: {
           practice: [
             'Play hands separately before hands together.',
             'Warm up with a scale before your piece.',
-            'Start with the hardest bar, not the easiest.',
+            'Start with the hardest measure, not the easiest.',
           ],
           learn: [
-            'Learn one new bar today.',
+            'Learn one new measure today.',
             'Learn a new scale, one hand at a time.',
             'Learn the name of a musical sign in your piece.',
           ],
@@ -145,7 +145,7 @@ export const MUSIC_PRACTICE: TrackDefinition = {
           learn: [
             'Learn a new slide position and the notes it plays.',
             'Learn a new scale.',
-            'Learn one new bar today.',
+            'Learn one new measure today.',
           ],
         } },
       // Anything else keeps the track's own general-purpose words.
