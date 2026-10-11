@@ -77,6 +77,21 @@ export function renderDaily(
     el('span', { class: 'chip chip--rank' }, [`${stats.rank.piece} ${stats.rank.name}`]),
   ]));
 
+  // Welcome back from SummerStreak: once, until closed.
+  if (s.summer && !s.summerRecapSeen) {
+    const r = s.summer;
+    const bits = [`${r.points} points`, r.rank, r.booksFinished ? `${r.booksFinished} ${r.booksFinished === 1 ? 'book' : 'books'}` : '',
+      r.totalMinutes ? `${r.totalMinutes} minutes read` : ''].filter(Boolean);
+    const ok = el('button', { class: 'btn btn--link btn--small', type: 'button' }, ['Got it']);
+    on(ok, 'click', () => { store.dismissSummerRecap(); rerender(); });
+    screen.append(el('div', { class: 'mod', role: 'status' }, [
+      el('div', { class: 'head' }, ['☀️ Welcome back']),
+      el('div', { style: 'font-weight:800;margin-bottom:var(--s-1)' }, [`Your summer is here, ${s.playerName}!`]),
+      el('div', { class: 'muted' }, [bits.join(' · ')]),
+      ok,
+    ]));
+  }
+
   // Kid switcher. Only shown for a family with more than one kid — a
   // single-kid family gains nothing from a menu of one, and the daily screen
   // is the kid's own surface, so it stays as plain as possible.

@@ -11,7 +11,7 @@ import {
 import {
   loadProfiles, saveProfiles, currentProfileId, setCurrentProfileId, migrate,
 } from './storage.js';
-import type { AuthUser, Backend, FamilyRollup, LeaderboardRow } from './sync.js';
+import type { AuthUser, Backend, FamilyRollup, LeaderboardRow, V1Kid } from './sync.js';
 import { buildRow } from './sync.js';
 import { hashPin, isValidPin, verifyPin } from './pin.js';
 import type { Group } from './groups.js';
@@ -188,6 +188,53 @@ export class Store {
     this.currentId = p.id;
     this.emit();
     return p;
+  }
+
+  /**
+   * SummerStreak kids on this account that aren't on this device yet. `[]`
+   * when signed out, offline, or nothing to bring in.
+   */
+  async findSummerKids(): Promise<V1Kid[]> {
+    const b = this.backend;
+    if (!b?.enabled || !b.user) return [];
+    const kids = await b.loadV1Kids();
+    return kids.filter((k) => !this.profiles.some((p) => p.id === k.profileId));
+  }
+
+  /**
+   * Bring SummerStreak kids in: each becomes a profile under its v1 id, on
+   * Reading Slide with its v1 theme, keeping its lifetime points (and so its
+   * rank) as a point adjustment. The day-by-day log stays on the device v1
+   * ran on; streaks start fresh. Consent is recorded per kid, as onboarding
+   * does. Returns how many were added.
+   */
+  importSummerKids(kids: readonly V1Kid[], consent: { guardian: boolean; data: boolean }): number {
+    let added = 0;
+    for (const k of kids) {
+      if (this.profiles.some((p) => p.id === k.profileId)) continue;
+      const p = newProfile(k.profileId, k.name);
+      p.state.playerAvatar = k.avatar;
+      p.state.consent = { ...consent, recordedAt: new Date().toISOString() };
+      p.state.summer = {
+        points: k.points, rank: k.rank, booksFinished: k.booksFinished,
+        totalMinutes: k.totalMinutes, totalWords: k.totalWords, lastSeen: k.lastSeen,
+      };
+      const t = newTrackState(asTrackId('reading-slide'), k.theme);
+      t.pointAdjustments = k.points;
+      p.state.tracks['reading-slide'] = t;
+      p.state.activeTrackId = asTrackId('reading-slide');
+      this.profiles.push(p);
+      if (added === 0) this.currentId = p.id;
+      added += 1;
+    }
+    if (added) this.emit();
+    return added;
+  }
+
+  /** Close the welcome-back card for the current kid. */
+  dismissSummerRecap(): void {
+    const s = this.state;
+    if (s) { s.summerRecapSeen = true; this.emit(); }
   }
 
   /**

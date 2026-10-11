@@ -20,7 +20,8 @@ import {
 import { migrateV1State } from './storage.js';
 import { Store } from './store.js';
 import { asActivityId, asDateKey, type DayEntry, type TrackDefinition, type TrackState } from './types.js';
-import type { AuthUser, Backend, LeaderboardRow } from './sync.js';
+import type { AuthUser, Backend, LeaderboardRow, V1Kid } from './sync.js';
+import { v1KidsFromLeaderboard } from './sync.js';
 import type { Group, GroupMember, Team } from './groups.js';
 import { TRACKS } from '../tracks/index.js';
 import { READING_SLIDE } from '../tracks/reading-slide.js';
@@ -576,6 +577,8 @@ class FakeBackend implements Backend {
   subscribeLeaderboard(_t: string, fn: (rows: LeaderboardRow[]) => void) { fn([]); return () => {}; }
   async saveRollup() {}
   async loadRollup() { return {}; }
+  v1Kids: V1Kid[] = [];
+  async loadV1Kids() { return this.v1Kids; }
   async createGroup() {}
   async loadGroup() { return null; }
   async joinGroup(groupId: string, key: string, member: GroupMember) { this.joined.push({ groupId, key, member }); }
@@ -585,6 +588,55 @@ class FakeBackend implements Backend {
   async createTeam(groupId: string, teamId: string, team: Team) { this.teams.push({ groupId, teamId, team }); }
   async deleteTeam() {}
 }
+
+describe('summer families bring their SummerStreak progress', () => {
+  const v1Row = (over: Record<string, unknown> = {}) => ({
+    uid: 'u_kate', profileId: 'p_declan', leaderboardKey: 'u_kate_p_declan', ownerEmail: 'k@example.com',
+    name: 'Declan', avatar: '👑', theme: 'chess', points: 160, weeklyPoints: 0, rank: 'Queen',
+    booksFinished: 3, totalMinutes: 640, totalWords: 1200, currentStreak: 0, lastSeen: 1_786_000_000_000, ...over,
+  });
+
+  it("reads only this account's kids, skips placeholders, and never the parent's email", () => {
+    const kids = v1KidsFromLeaderboard({
+      a: v1Row(),
+      b: v1Row({ uid: 'someone_else', profileId: 'p_x', name: 'Sebastian' }),
+      c: v1Row({ profileId: 'p_new', name: 'New device' }),
+      d: v1Row({ profileId: 'p_sis', name: 'Ava', points: 120, lastSeen: 1_785_000_000_000 }),
+    }, 'u_kate');
+    expect(kids.map((k) => k.name)).toEqual(['Declan', 'Ava']);
+    expect(JSON.stringify(kids)).not.toContain('k@example.com');
+  });
+
+  it('keeps lifetime points, so the rank carries over; streaks start fresh', () => {
+    const store = new Store(new MemStorage());
+    store.init();
+    const [declan] = v1KidsFromLeaderboard({ a: v1Row() }, 'u_kate');
+    expect(store.importSummerKids([declan!], { guardian: true, data: true })).toBe(1);
+    const t = store.activeTrack!;
+    expect(store.profile!.id).toBe('p_declan');
+    expect(store.state!.playerName).toBe('Declan');
+    expect(t.theme).toBe('chess');
+    const stats = computeStats(READING_SLIDE, t, ladderFor(READING_SLIDE, t));
+    expect(stats.points).toBe(160);
+    expect(stats.rank.name).toBe('Queen');
+    expect(stats.currentStreak).toBe(0);
+    expect(store.state!.consent.guardian).toBe(true);
+    expect(store.state!.summer?.booksFinished).toBe(3);
+  });
+
+  it("offers only kids not already here, and importing twice adds nothing", async () => {
+    const store = new Store(new MemStorage());
+    const b = new FakeBackend();
+    b.v1Kids = v1KidsFromLeaderboard({ a: v1Row(), d: v1Row({ profileId: 'p_sis', name: 'Ava' }) }, 'u_kate');
+    store.attachBackend(b);
+    store.init();
+    store.importSummerKids([b.v1Kids[0]!], { guardian: true, data: true });
+    const left = await store.findSummerKids();
+    expect(left.map((k) => k.name)).toEqual(['Ava']);
+    expect(store.importSummerKids(b.v1Kids, { guardian: true, data: true })).toBe(1);
+    expect(store.all.length).toBe(2);
+  });
+});
 
 describe('joining a challenge records it and publishes window points', () => {
   function setup() {
