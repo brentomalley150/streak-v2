@@ -278,16 +278,33 @@ function dayNumber(date: DateKey): number {
 }
 
 /**
- * Ideas for one activity, for the kid's theme, rotating daily. Falls back to
- * the '*' list when a theme has none. Deterministic: the same day always
- * shows the same ideas, so nothing reshuffles while a kid is looking.
+ * One rotation for an activity: the general '*' ideas with the theme's own
+ * spread evenly through them, so a kid meets their theme every few days
+ * instead of in one block. Either list alone is used as it stands.
+ */
+export function ideaRotation(pool: IdeaPool, theme: string): string[] {
+  const themed = theme === '*' ? [] : (pool[theme] ?? []);
+  const general = pool['*'] ?? [];
+  if (!themed.length || !general.length) return [...themed, ...general];
+  const n = themed.length + general.length;
+  const out: Array<string | undefined> = new Array(n);
+  themed.forEach((idea, i) => { out[Math.floor(((i + 1) * n) / themed.length) - 1] = idea; });
+  let g = 0;
+  for (let i = 0; i < n; i += 1) if (out[i] === undefined) out[i] = general[g++];
+  return out as string[];
+}
+
+/**
+ * Ideas for one activity, for the kid's theme, rotating daily through the
+ * theme's ideas and the general ones together. Deterministic: the same day
+ * always shows the same ideas, so nothing reshuffles while a kid is looking.
  */
 export function ideasFor(
   def: TrackDefinition, activityId: string, theme: string, date: DateKey, count = 2,
 ): string[] {
   const pool = def.ideas?.[activityId];
   if (!pool) return [];
-  const list = pool[theme] ?? pool['*'] ?? [];
+  const list = ideaRotation(pool, theme);
   if (list.length <= count) return [...list];
   const start = dayNumber(date) % list.length;
   const out: string[] = [];

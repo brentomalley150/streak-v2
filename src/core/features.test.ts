@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   bonusPoints, challengeWindow, computeStats, confirmActivity, currentStreak, effectiveDef,
-  ideasFor, makeEntry, pendingConfirmations, pointsForEntry, pointsInWindow, prizeStatus,
+  ideaRotation, ideasFor, makeEntry, pendingConfirmations, pointsForEntry, pointsInWindow, prizeStatus,
   routinePlan, toggleActivity,
 } from './engine.js';
 import { buildRow, weeklyPoints } from './sync.js';
@@ -126,6 +126,22 @@ describe('theme ideas for each activity (FR24)', () => {
     expect(ideasFor(READING_SLIDE, 'write', 'animals', d('2026-10-11'))).not.toEqual(a);
   });
 
+  it("mixes the theme's ideas evenly into the general ones", () => {
+    const pool = {
+      '*': Array.from({ length: 14 }, (_, i) => `g${i + 1}`),
+      chess: Array.from({ length: 7 }, (_, i) => `t${i + 1}`),
+    };
+    const r = ideaRotation(pool, 'chess');
+    expect(r).toHaveLength(21);
+    expect(new Set(r).size).toBe(21); // every idea once per cycle
+    expect(r.filter((x) => x.startsWith('t'))).toEqual(pool.chess); // theme order kept
+    // Spread out, not bunched: never more than two general ideas in a row,
+    // so the theme shows up on two days out of every three.
+    expect(r.join(',')).not.toMatch(/g\d+,g\d+,g\d+/);
+    // A theme with no list of its own just gets the general ones.
+    expect(ideaRotation(pool, 'dance')).toEqual(pool['*']);
+  });
+
   it("falls back to the '*' list for a theme without its own", () => {
     expect(ideasFor(READING_SLIDE, 'closeout', 'dance', d('2026-10-10')).length).toBe(2);
   });
@@ -164,9 +180,10 @@ describe('music: the kid picks an instrument', () => {
     }
   });
 
-  it("a theme's own ideas still win over the instrument's", () => {
+  it("a theme's own ideas still show alongside the instrument's", () => {
     const drums = effectiveDef(MUSIC_PRACTICE, { ...day([]), variant: 'drums' });
-    expect(ideasFor(drums, 'listen', 'gaming', d('2026-10-10'))).toEqual(MUSIC_PRACTICE.ideas!['listen']!['gaming']);
+    expect(ideaRotation(drums.ideas!['listen']!, 'gaming'))
+      .toEqual(expect.arrayContaining([...MUSIC_PRACTICE.ideas!['listen']!['gaming']!]));
   });
 
   it('no pick (or an unknown one) plays the general track', () => {
