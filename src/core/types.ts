@@ -141,6 +141,11 @@ export interface TrackDefinition {
   readonly retiredActivities?: readonly Activity[];
   /** A parent may replace the activity list (Home Helper's chore list). */
   readonly customizableActivities?: boolean;
+  /**
+   * Extra points for a perfect day — every activity done. Defaults to the
+   * engine's PERFECT_DAY_BONUS; 0 turns it off for a track.
+   */
+  readonly perfectDayBonus?: number;
 }
 
 /** DATA-MODEL §3.3 — the generalized DayEntry. */
@@ -152,6 +157,11 @@ export interface DayEntry {
   /** keyed by field id — replaces v1's fixed minutes/book/words */
   values: Record<string, string | number>;
   points: number;
+  /**
+   * True when this day was a perfect day (every activity scored) as of the
+   * last tick or confirmation. Stored, not recomputed, so a later change to a
+   * parent's chore list can never take a perfect-day bonus away.
+   */
   comboClaimed: boolean;
   /** Parent confirmations for needsParentConfirm activities, keyed by activity id. */
   confirmed?: Record<string, boolean>;

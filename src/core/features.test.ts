@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   bonusPoints, canLogDate, challengeWindow, computeStats, confirmActivity, currentStreak, earliestLoggable, effectiveDef,
-  ideasFor, makeEntry, pendingConfirmations, pointsForEntry, pointsInWindow, prizeStatus,
+  ideasFor, makeEntry, maxPointsPerDay, pendingConfirmations, PERFECT_DAY_BONUS, pointsForEntry, pointsInWindow, prizeStatus,
   routinePlan, toggleActivity,
 } from './engine.js';
 import { buildRow, weeklyPoints } from './sync.js';
@@ -190,6 +190,50 @@ describe('logging a day the kid forgot', () => {
     const before = weeklyPoints(READING_SLIDE, t, new Date('2026-10-11T12:00:00'));
     store.toggle('read', d('2026-10-04')); // a week ago Sunday
     expect(weeklyPoints(READING_SLIDE, t, new Date('2026-10-11T12:00:00'))).toBe(before);
+  });
+});
+
+describe('perfect day bonus', () => {
+  const tick = (def: TrackDefinition, ids: string[]) =>
+    ids.reduce((e, id) => toggleActivity(def, e, id), makeEntry(def, d('2026-10-10')));
+
+  it('all three activities earn +2 on top of their points', () => {
+    expect(tick(READING_SLIDE, ['read', 'write']).points).toBe(6);
+    const e = tick(READING_SLIDE, ['read', 'write', 'closeout']);
+    expect(e.comboClaimed).toBe(true);
+    expect(e.points).toBe(3 + 3 + 1 + PERFECT_DAY_BONUS);
+    expect(maxPointsPerDay(READING_SLIDE)).toBe(7 + PERFECT_DAY_BONUS);
+  });
+
+  it('un-ticking one takes the bonus back', () => {
+    const e = toggleActivity(READING_SLIDE, tick(READING_SLIDE, ['read', 'write', 'closeout']), 'write');
+    expect(e.comboClaimed).toBe(false);
+    expect(e.points).toBe(4);
+  });
+
+  it('chores earn it only once a grown-up has confirmed them all', () => {
+    let e = tick(HOME_HELPER, HOME_HELPER.activities.map((a) => String(a.id)));
+    expect(e.comboClaimed).toBe(false);
+    for (const a of HOME_HELPER.activities) e = confirmActivity(HOME_HELPER, e, String(a.id));
+    expect(e.comboClaimed).toBe(true);
+    expect(pointsForEntry(HOME_HELPER, e)).toBe(maxPointsPerDay(HOME_HELPER));
+  });
+
+  it("a parent adding a chore later doesn't take an earned bonus away", () => {
+    let e = tick(HOME_HELPER, HOME_HELPER.activities.map((a) => String(a.id)));
+    for (const a of HOME_HELPER.activities) e = confirmActivity(HOME_HELPER, e, String(a.id));
+    const extra = { id: asActivityId('dishes'), label: 'Dishes', icon: '🍽️', points: 4, needsParentConfirm: true, fields: [] };
+    const s = stateWith(HOME_HELPER, [], {
+      entries: { '2026-10-10': e },
+      customActivities: [...HOME_HELPER.activities, extra],
+    });
+    expect(computeStats(HOME_HELPER, s, ladderFor(HOME_HELPER, s), d('2026-10-10')).points)
+      .toBe(pointsForEntry(HOME_HELPER, e));
+  });
+
+  it('a track can turn it off', () => {
+    const off = { ...READING_SLIDE, perfectDayBonus: 0 };
+    expect(tick(off, ['read', 'write', 'closeout']).points).toBe(7);
   });
 });
 

@@ -25,7 +25,7 @@
 import type { DayEntry, TrackDefinition, TrackState } from './types.js';
 import { asDateKey } from './types.js';
 import { weekStartKey } from './sync.js';
-import { todayKey, addDays, effectiveDef, pointsForEntry } from './engine.js';
+import { todayKey, addDays, effectiveDef, maxPointsPerDay, pointsForEntry } from './engine.js';
 import { projectionFor } from './projection.js';
 
 /** What the loop RETRIEVED — the evidence every claim must cite. */
@@ -139,7 +139,7 @@ export function retrieveWeek(
     daysInWeek,
     pointsThisWeek: points,
     // A done bonus raises the ceiling too, so points never exceed "possible".
-    maxPointsThisWeek: def.activities.reduce((n, a) => n + a.points, 0) * daysInWeek + bonusThisWeek * per,
+    maxPointsThisWeek: maxPointsPerDay(def) * daysInWeek + bonusThisWeek * per,
     perActivity,
     totals,
     longestGap: gap,

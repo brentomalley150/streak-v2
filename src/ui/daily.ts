@@ -8,7 +8,7 @@ import { asDateKey } from '../core/types.js';
 import { getTrack, TRACKS } from '../tracks/index.js';
 import { THEMES, ladderFor, themeInfo } from '../tracks/ladders.js';
 import {
-  computeStats, todayKey, addDays, earliestLoggable, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, canEnrollNow,
+  computeStats, todayKey, addDays, earliestLoggable, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, pointsForEntry, perfectDayBonus, canEnrollNow,
   effectiveDef, ideasFor, routinePlan, activityScores, prizeStatus, pendingConfirmations,
   challengeWindow, pointsInWindow,
 } from '../core/engine.js';
@@ -232,6 +232,7 @@ export function renderDaily(
 
   // activities — straight from the (effective) definition
   const plan = routinePlan(def, t.baseline);
+  const bonus = perfectDayBonus(def);
   const acts = el('div', { class: 'acts' });
   for (const a of def.activities) {
     const ticked = !!entry.completed[a.id];
@@ -239,21 +240,45 @@ export function renderDaily(
     const b = el('button', { class: 'act', type: 'button', 'aria-pressed': String(ticked) }, [
       el('span', { class: 'ico' }, [a.icon]),
       el('span', { class: 'label' }, [a.label]),
+      // What a tap is worth, on the tile itself, so the kid never has to guess.
+      el('span', { class: 'pts' }, [`+${a.points} ${a.points === 1 ? 'pt' : 'pts'}`]),
       ...(a.minutes ? [el('span', { class: 'mins' }, [`${a.minutes} min`])] : []),
       ...(ticked
         ? [el('span', { class: waiting ? 'done done--wait' : 'done' }, [waiting ? '⏳ Grown-up checks' : '✓ Done'])]
         : []),
     ]);
     on(b, 'click', () => {
+      const wasPerfect = entry.comboClaimed;
       store.toggle(String(a.id), day);
       rerender();
-      if (!isToday && !ticked) toast(`Logged for ${dayLabel(day, today)}`);
+      const nowPerfect = store.activeTrack?.entries[day]?.comboClaimed ?? false;
+      if (nowPerfect && !wasPerfect) toast(`🌟 Perfect day! +${bonus} bonus points`);
+      else if (!isToday && !ticked) toast(`Logged for ${dayLabel(day, today)}`);
     });
     acts.append(b);
   }
   screen.append(acts);
 
-  const earned = def.activities.reduce((n, a) => (activityScores(a, entry) ? n + a.points : n), 0);
+  // Perfect day (v1's combo, back): every activity done earns a bonus. Shown
+  // as a goal with progress, so the kid can see it before they've earned it.
+  const scoredCount = def.activities.filter((a) => activityScores(a, entry)).length;
+  const tickedCount = def.activities.filter((a) => entry.completed[a.id]).length;
+  const total = def.activities.length;
+  if (bonus > 0 && total > 0) {
+    const all = total === 3 ? 'all three' : `all ${total}`;
+    const text = entry.comboClaimed
+      ? `Perfect day! +${bonus} bonus points`
+      : tickedCount === total
+        ? `All done — +${bonus} bonus once a grown-up checks`
+        : `Perfect day bonus: do ${all} for +${bonus} more`;
+    screen.append(el('div', { class: entry.comboClaimed ? 'perfect perfect--won' : 'perfect' }, [
+      el('span', { class: 'perfect-star' }, ['🌟']),
+      el('span', { class: 'grow' }, [text]),
+      el('span', { class: 'perfect-count' }, [`${scoredCount}/${total}`]),
+    ]));
+  }
+
+  const earned = pointsForEntry(def, entry);
   const waitingCount = def.activities.filter((a) => entry.completed[a.id] && !activityScores(a, entry)).length;
   screen.append(el('p', { class: 'muted', style: 'text-align:center' }, [
     `${dayLabel(day, today)}: ${earned} of ${maxPointsPerDay(def)} points`
