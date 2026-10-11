@@ -239,6 +239,7 @@ class FirebaseBackend implements Backend {
     }
     paths[`v2/families/${this.user.uid}/rollup/${kid.profileId}`] = null;
     paths[`v2/families/${this.user.uid}/profiles/${kid.profileId}`] = null;
+    paths[`v2/families/${this.user.uid}/activity/${kid.profileId}`] = null;
     for (const g of kid.groupIds) paths[`v2/groups/${g}/members/${kid.key}`] = null;
     await this.sdk.update(this.sdk.ref(this.db), paths);
   }
@@ -246,6 +247,14 @@ class FirebaseBackend implements Backend {
   async saveProfileBackup(profileId: string, backup: ProfileBackup): Promise<void> {
     if (!this.user) return;
     await this.sdk.set(this.sdk.ref(this.db, `v2/families/${this.user.uid}/profiles/${profileId}`), backup);
+  }
+
+  async saveActivitySummary(profileId: string, paths: Record<string, unknown>): Promise<void> {
+    if (!this.user) return;
+    const base = `v2/families/${this.user.uid}/activity/${profileId}`;
+    const full: Record<string, unknown> = {};
+    for (const [p, v] of Object.entries(paths)) full[`${base}/${p}`] = v;
+    await this.sdk.update(this.sdk.ref(this.db), full);
   }
 
   async loadProfileBackups(): Promise<Record<string, unknown>> {

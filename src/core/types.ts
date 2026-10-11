@@ -195,6 +195,8 @@ export interface DayEntry {
   comboClaimed: boolean;
   /** Parent confirmations for needsParentConfirm activities, keyed by activity id. */
   confirmed?: Record<string, boolean>;
+  /** Something was ticked on a later day than this one (logging a missed day). */
+  filledLater?: boolean;
 }
 
 /**

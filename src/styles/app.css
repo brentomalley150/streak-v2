@@ -284,6 +284,17 @@ p  { margin: 0 0 var(--s-3); color: var(--soft); }
 .btn--small { width: auto; min-height: 40px; padding: var(--s-2) var(--s-3); font-size: var(--t-body-sm); flex: 0 0 auto; }
 .btn--link.btn--small { padding: var(--s-2); }
 .btn--danger { background: var(--red); color: var(--text-on-accent); }
+
+/* ── Summer recap ── */
+.recap-hero { display: flex; align-items: center; gap: var(--s-3); margin: var(--s-2) 0 var(--s-4); }
+.recap-avatar { font-size: 44px; line-height: 1; }
+.recap-hero h1 { margin: 0; text-wrap: balance; }
+.recap-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); gap: var(--s-2); margin-bottom: var(--s-4); }
+.recap-stat { background: var(--panel-alt); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s-3); }
+.recap-num { font-size: var(--t-h2); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.recap-lbl { font-size: var(--t-caption); font-weight: 700; color: var(--muted); }
+.recap-actions { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-4); }
+@media print { .recap-actions { display: none; } }
 .danger-zone { margin-top: var(--s-3); padding: var(--s-3); border: 2px solid var(--red); border-radius: var(--r-md); background: var(--panel); }
 
 .iconpick, .seg { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-1); }
