@@ -41,6 +41,7 @@ class RecordingBackend implements Backend {
   }
   stored: FamilyRollup = {};
   async loadRollup(): Promise<FamilyRollup> { return this.stored; }
+  async loadV1Kids() { return []; }
   async createGroup() {}
   async loadGroup() { return null; }
   async joinGroup() {}

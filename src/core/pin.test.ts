@@ -179,6 +179,7 @@ describe('sync claim on the handoff screen', () => {
       subscribeLeaderboard(_t, fn) { fn([]); return () => {}; },
       async saveRollup() {},
       async loadRollup() { return {}; },
+      async loadV1Kids() { return []; },
       async createGroup() {},
       async loadGroup() { return null; },
       async joinGroup() {},

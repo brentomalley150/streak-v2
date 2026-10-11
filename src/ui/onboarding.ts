@@ -9,6 +9,7 @@ import { TRACKS } from '../tracks/index.js';
 import { THEMES } from '../tracks/ladders.js';
 import { hasProjection } from '../core/projection.js';
 import { el, clear, on } from './dom.js';
+import type { V1Kid } from '../core/sync.js';
 
 type Draft = { name: string; trackId: string | null; variant: string | null; theme: string | null;
                guardian: boolean; data: boolean; projection: boolean };
@@ -18,6 +19,8 @@ export function renderOnboarding(
 ): void {
   const draft: Draft = { name: '', trackId: null, variant: null, theme: null, guardian: false, data: false, projection: false };
   let step = 1;
+  /** More than one kid came in at once (SummerStreak import). */
+  let many = false;
   const TOTAL = 7;
 
   const dots = () => {
@@ -44,7 +47,7 @@ export function renderOnboarding(
       btn.disabled = true;
       btn.textContent = 'Signing in…';
       void store.signIn()
-        .then(() => { step = 2; step2(); })
+        .then(() => afterSignIn())
         .catch(() => {
           // Sign-in is for syncing across devices, not for playing. If it fails
           // the family continues on this device rather than being stuck.
@@ -71,6 +74,75 @@ export function renderOnboarding(
           ? 'A parent signs in. Your kid never needs an account.'
           : 'Progress saves on this device. Your kid never needs an account.']),
     ], true);
+  }
+
+  /** Signed in: a SummerStreak family gets their kids back before anything else. */
+  async function afterSignIn(): Promise<void> {
+    const kids = await store.findSummerKids();
+    if (kids.length) { summerStep(kids); return; }
+    step = 2; step2();
+  }
+
+  /**
+   * Welcome back from SummerStreak. Brings each chosen kid in with their name,
+   * avatar, theme and lifetime points; the parent still gives consent here,
+   * exactly as step 5 asks a new family.
+   */
+  function summerStep(kids: V1Kid[]): void {
+    const chosen = new Set(kids.map((k) => k.profileId));
+    let guardian = false, data = false;
+    const go = el('button', { class: 'btn', type: 'button' }, ['Bring them in']);
+    const sync = () => { go.disabled = !(guardian && data && chosen.size > 0); };
+
+    const list = el('div', { class: 'stack', style: 'margin-bottom:var(--s-4)' });
+    for (const k of kids) {
+      const b = el('button', { class: 'opt', type: 'button', 'aria-pressed': 'true' }, [
+        el('span', { class: 'ico' }, [k.avatar]),
+        el('span', {}, [
+          el('span', { class: 't' }, [k.name]),
+          el('span', { class: 'd' }, [[
+            `${k.points} pts`, k.rank, k.booksFinished ? `${k.booksFinished} ${k.booksFinished === 1 ? 'book' : 'books'}` : '',
+          ].filter(Boolean).join(' · ')]),
+        ]),
+      ]);
+      on(b, 'click', () => {
+        if (chosen.has(k.profileId)) chosen.delete(k.profileId); else chosen.add(k.profileId);
+        b.setAttribute('aria-pressed', String(chosen.has(k.profileId)));
+        sync();
+      });
+      list.append(b);
+    }
+
+    const box = (label: Array<Node | string>, toggle: () => boolean) => {
+      const c = el('button', { class: 'check', type: 'button', role: 'checkbox', 'aria-checked': 'false' }, ['✓']);
+      on(c, 'click', () => { c.setAttribute('aria-checked', String(toggle())); sync(); });
+      return el('div', { class: 'line' }, [c, el('span', { class: 'txt' }, label)]);
+    };
+    const consent = el('div', { class: 'consent' }, [
+      box(["I'm their ", el('strong', {}, ['parent or guardian']), ", and I'm bringing their summer progress into Beat the Slide."],
+        () => (guardian = !guardian)),
+      box(['I agree we store their ', el('strong', {}, ['first name and daily activity']), ' only. No ads, never sold. ',
+        el('strong', {}, ['Delete anytime']), ' in settings.'], () => (data = !data)),
+    ]);
+
+    on(go, 'click', () => {
+      const picked = kids.filter((k) => chosen.has(k.profileId));
+      store.importSummerKids(picked, { guardian, data });
+      draft.name = picked.map((k) => k.name).join(' and ');
+      many = picked.length > 1;
+      step = 7; step7();
+    });
+    const fresh = el('button', { class: 'btn btn--link', type: 'button' }, ['Start fresh instead']);
+    on(fresh, 'click', () => { step = 2; step2(); });
+    sync();
+
+    screen([
+      dots(),
+      el('div', { class: 'eyebrow' }, ['Welcome back']),
+      el('h2', {}, ['Your summer is still here']),
+      el('p', {}, [`We found ${kids.length === 1 ? 'your kid' : `${kids.length} kids`} from SummerStreak on this Google account. Their points and rank come with them; streaks start fresh this fall.`]),
+      list, consent, go, fresh,
+    ]);
   }
 
   function step2(): void {
@@ -318,7 +390,7 @@ export function renderOnboarding(
     screen([
       dots(),
       el('div', { class: 'eyebrow' }, [`Step ${TOTAL} of ${TOTAL}`]),
-      el('h2', {}, [`${name} is all set`]),
+      el('h2', {}, [`${name} ${many ? 'are' : 'is'} all set`]),
       el('p', {}, ['One thing before you go.']),
       points,
       // The PIN is optional. Skipping it is a supported path, not a lesser one.
@@ -328,4 +400,6 @@ export function renderOnboarding(
   }
 
   step1();
+  // Already signed in (adding a kid): check for SummerStreak kids straight away.
+  if (store.user) void store.findSummerKids().then((k) => { if (k.length && step === 1) summerStep(k); });
 }

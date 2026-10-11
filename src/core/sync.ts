@@ -67,6 +67,11 @@ export interface Backend {
   saveRollup(profileId: string, rows: LeaderboardRow[]): Promise<void>;
   /** Every kid, every track, one read. `{}` when signed out or offline. */
   loadRollup(): Promise<FamilyRollup>;
+  /**
+   * This account's kids from SummerStreak (v1), read from v1's leaderboard in
+   * the same database. `[]` when signed out, offline, or new to Beat the Slide.
+   */
+  loadV1Kids(): Promise<V1Kid[]>;
 
   /** Groups (FR13–FR18). All no-ops offline; the app stays usable without them. */
   createGroup(group: Group): Promise<void>;
@@ -82,6 +87,54 @@ export interface Backend {
   createTeam(groupId: string, teamId: string, team: Team): Promise<void>;
   /** The challenge owner removes a team (e.g. one added by mistake). */
   deleteTeam(groupId: string, teamId: string): Promise<void>;
+}
+
+/** One kid's SummerStreak row, reduced to what the import needs. */
+export interface V1Kid {
+  profileId: string;
+  name: string;
+  avatar: string;
+  theme: string;
+  points: number;
+  rank: string;
+  booksFinished: number;
+  totalMinutes: number;
+  totalWords: number;
+  lastSeen: number;
+}
+
+const V1_PLACEHOLDER_NAMES = new Set(['', 'player', 'unnamed', 'kid', 'new device']);
+const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0);
+
+/**
+ * This account's kids out of v1's /leaderboard. Only rows whose `uid` is this
+ * account; placeholder names are skipped, as v1 itself refused to sync them.
+ * v1 rows also carry the parent's email; it is deliberately not read.
+ */
+export function v1KidsFromLeaderboard(rows: Record<string, unknown>, uid: string): V1Kid[] {
+  const byId = new Map<string, V1Kid>();
+  for (const raw of Object.values(rows ?? {})) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    if (r['uid'] !== uid || typeof r['profileId'] !== 'string' || !r['profileId']) continue;
+    const name = String(r['name'] ?? '').trim();
+    if (V1_PLACEHOLDER_NAMES.has(name.toLowerCase())) continue;
+    const kid: V1Kid = {
+      profileId: r['profileId'] as string,
+      name: name.slice(0, 24),
+      avatar: typeof r['avatar'] === 'string' && r['avatar'] ? (r['avatar'] as string).slice(0, 8) : '👑',
+      theme: typeof r['theme'] === 'string' ? (r['theme'] as string) : 'chess',
+      points: num(r['points']),
+      rank: typeof r['rank'] === 'string' ? (r['rank'] as string) : '',
+      booksFinished: num(r['booksFinished']),
+      totalMinutes: num(r['totalMinutes']),
+      totalWords: num(r['totalWords']),
+      lastSeen: num(r['lastSeen']),
+    };
+    const prev = byId.get(kid.profileId);
+    if (!prev || kid.lastSeen > prev.lastSeen) byId.set(kid.profileId, kid);
+  }
+  return [...byId.values()].sort((a, b) => b.lastSeen - a.lastSeen);
 }
 
 /** `${googleUid}_${profileId}` — one slot per kid, siblings distinct. */
@@ -164,6 +217,7 @@ export class NullBackend implements Backend {
   }
   async saveRollup(): Promise<void> { /* nothing to do */ }
   async loadRollup(): Promise<FamilyRollup> { return {}; }
+  async loadV1Kids(): Promise<V1Kid[]> { return []; }
   async createGroup(): Promise<void> { /* offline: nothing to share with */ }
   async loadGroup(): Promise<Group | null> { return null; }
   async joinGroup(): Promise<void> { /* offline */ }

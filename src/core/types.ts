@@ -262,6 +262,17 @@ export interface TrackState {
   retiredCustomActivities?: Activity[];
 }
 
+/** A kid's SummerStreak totals, as v1 synced them. */
+export interface SummerRecap {
+  points: number;
+  rank: string;
+  booksFinished: number;
+  totalMinutes: number;
+  totalWords: number;
+  /** When v1 last heard from this kid (ms). */
+  lastSeen: number;
+}
+
 export interface ParentAuth {
   setupComplete: boolean;
   adminName: string;
@@ -286,6 +297,14 @@ export interface ProfileState {
   consent: { guardian: boolean; data: boolean; recordedAt: string | null };
   /** Challenges this kid joined, so the family can publish window scores. */
   joinedChallenges?: JoinedChallenge[];
+  /**
+   * What this kid did in SummerStreak (v1), when brought in from v1's cloud
+   * rows. The points already count (as pointAdjustments on Reading Slide);
+   * this is kept for the welcome-back card and never published.
+   */
+  summer?: SummerRecap;
+  /** The welcome-back card was closed. */
+  summerRecapSeen?: boolean;
 }
 
 export interface Profile {

@@ -8,9 +8,9 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Database } from 'firebase/database';
-import type { AuthUser, Backend, FamilyRollup, LeaderboardRow } from './sync.js';
+import type { AuthUser, Backend, FamilyRollup, LeaderboardRow, V1Kid } from './sync.js';
 import type { Group, GroupMember, Team } from './groups.js';
-import { NullBackend } from './sync.js';
+import { NullBackend, v1KidsFromLeaderboard } from './sync.js';
 
 function readConfig(): Record<string, string> | null {
   const e = import.meta.env;
@@ -218,6 +218,17 @@ class FirebaseBackend implements Backend {
   async deleteTeam(groupId: string, teamId: string): Promise<void> {
     if (!this.user) return;
     await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${groupId}/teams/${teamId}`), null);
+  }
+
+  /** v1 owns /leaderboard (any signed-in user may read it); v2 only reads. */
+  async loadV1Kids(): Promise<V1Kid[]> {
+    if (!this.user) return [];
+    try {
+      const snap = await this.sdk.get(this.sdk.ref(this.db, 'leaderboard'));
+      return v1KidsFromLeaderboard((snap.val() ?? {}) as Record<string, unknown>, this.user.uid);
+    } catch {
+      return [];
+    }
   }
 
   async loadRollup(): Promise<FamilyRollup> {
