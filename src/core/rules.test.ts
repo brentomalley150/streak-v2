@@ -82,8 +82,9 @@ describe('v2 stays inside /v2', () => {
 
 /**
  * The published leaderboard row is world-readable to any signed-in user, so it
- * must carry only what the onboarding consent screen promises: "Friends see
- * only a first name and a score. Never a last name, photo, or location."
+ * must carry only what the onboarding consent screen discloses: "Other families
+ * on the same track can see your kid's first name, avatar and progress, like
+ * points and minutes read. Never a last name, photo, or location."
  *
  * v2.0 shipped `ownerEmail: user.email` on that row, which broke that promise —
  * a parent's real email, readable by every other user, for a person who never

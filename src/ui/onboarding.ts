@@ -207,7 +207,7 @@ export function renderOnboarding(
       el('h2', {}, ['Your permission']),
       el('p', {}, [`${draft.name || 'Your kid'} is under 13, so we need a parent to agree before anything is saved.`]),
       c,
-      el('p', { class: 'muted' }, ['Friends see only a first name and a score. Never a last name, photo, or location.']),
+      el('p', { class: 'muted' }, ["Other families on the same track can see your kid's first name, avatar and progress, like points and minutes read. Never a last name, photo, or location."]),
       btn,
     ]);
   }
