@@ -99,9 +99,10 @@ describe('Math became its own track — and nobody lost points', () => {
   });
 });
 
-describe('six kid-chosen themes (FR23)', () => {
+describe('kid-chosen themes (FR23)', () => {
   it('every ladder shares the same seven thresholds', () => {
-    expect(THEMES.map((t) => t.id)).toEqual(['chess', 'sports', 'gaming', 'music', 'animals', 'dance']);
+    expect(THEMES.map((t) => t.id)).toEqual(
+      ['chess', 'sports', 'gaming', 'music', 'animals', 'dance', 'art', 'space', 'fantasy']);
     for (const t of THEMES) {
       expect(LADDERS[t.id]!.map((r) => r.min)).toEqual([...RANK_THRESHOLDS]);
     }
@@ -119,7 +120,23 @@ describe('six kid-chosen themes (FR23)', () => {
     expect(dance.rank.name).not.toBe(chess.rank.name);
   });
 
-  it('every track offers all six themes', () => {
+  it('every theme has its own rank names, and no two rungs in a ladder share one', () => {
+    for (const t of THEMES) {
+      const names = LADDERS[t.id]!.map((r) => r.name);
+      expect(new Set(names).size).toBe(names.length);
+    }
+  });
+
+  it('a theme with no ideas of its own still shows the general ones', () => {
+    for (const t of TRACKS) {
+      for (const a of t.activities) {
+        if (!t.ideas?.[String(a.id)]) continue;
+        expect(ideasFor(t, String(a.id), 'fantasy', d('2026-10-10')).length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('every track offers every theme', () => {
     for (const t of TRACKS) expect([...t.themes].sort()).toEqual(THEMES.map((x) => x.id).sort());
   });
 });
