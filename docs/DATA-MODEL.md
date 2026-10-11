@@ -184,6 +184,26 @@ and Phase 2's learning goal #2 has its answer.
 > ("what's the outcome projection for Music? Mindful Kid?"). Tracks without one
 > render no projection panel. Nothing else changes.
 
+**Variants** (optional). A track can offer kid-picked flavours — Music offers
+drums, guitar, piano, trombone, or "something else":
+
+```js
+variants: {
+  prompt: 'What do you play?', noun: 'instrument',
+  options: [
+    { id: 'drums', label: 'Drums', icon: '🥁',
+      activities: { learn: { placeholders: { newSkill: 'Rudiment, groove, fill…' } } },
+      ideas: { practice: [ /* replaces the '*' list */ ] } },
+  ]
+}
+```
+
+A variant changes **words only** — activity icons, field placeholders, and the
+`'*'` idea list (a theme's own list still wins). Ids and points never change, so
+switching instrument moves no points and kids on different instruments share
+one leaderboard. `effectiveDef` applies the pick; an unset or unknown pick
+plays the generic track.
+
 ### 3.3 The v2 `DayEntry` — generalized
 
 ```js
@@ -209,6 +229,7 @@ become **keys in `values`**. Same information, no track vocabulary in the engine
   tracks: {
     'reading-slide': {
       trackId, enrolledAt, startDate, preference: 'chess',
+      variant: 'drums',          // optional — the kid's pick from §3.2 variants
       entries: {}, weeklyChallengesCompleted: {}, weeklyAdjustments: {},
       earnedBadges: {}, pointAdjustments: 0,
       prizes: [...], claimHistory: [], playerGoals: [],
