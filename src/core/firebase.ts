@@ -220,6 +220,32 @@ class FirebaseBackend implements Backend {
     await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${groupId}/teams/${teamId}`), null);
   }
 
+  /**
+   * One atomic multi-path delete. Weekly history is read first because a kid
+   * has a row under every week they synced; only this kid's keys are removed.
+   * The rules allow each path only to its own family.
+   */
+  async deleteKidData(kid: { key: string; profileId: string; trackIds: string[]; groupIds: string[] }): Promise<void> {
+    if (!this.user) throw new Error('signed out');
+    const paths: Record<string, null> = {};
+    for (const t of kid.trackIds) {
+      paths[`v2/tracks/${t}/leaderboard/${kid.key}`] = null;
+      const hist = await this.sdk.get(this.sdk.ref(this.db, `v2/tracks/${t}/weeklyHistory`));
+      const weeks = (hist.val() ?? {}) as Record<string, Record<string, unknown>>;
+      for (const [week, rows] of Object.entries(weeks)) {
+        if (rows && kid.key in rows) paths[`v2/tracks/${t}/weeklyHistory/${week}/${kid.key}`] = null;
+      }
+    }
+    paths[`v2/families/${this.user.uid}/rollup/${kid.profileId}`] = null;
+    for (const g of kid.groupIds) paths[`v2/groups/${g}/members/${kid.key}`] = null;
+    await this.sdk.update(this.sdk.ref(this.db), paths);
+  }
+
+  async deleteFamilyRecord(): Promise<void> {
+    if (!this.user) throw new Error('signed out');
+    await this.sdk.set(this.sdk.ref(this.db, `v2/families/${this.user.uid}`), null);
+  }
+
   /** v1 owns /leaderboard (any signed-in user may read it); v2 only reads. */
   async loadV1Kids(): Promise<V1Kid[]> {
     if (!this.user) return [];

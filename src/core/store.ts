@@ -9,7 +9,8 @@ import {
   todayKey, toggleActivity, getEntry, canLogDate, confirmActivity, effectiveDef, pointsInWindow,
 } from './engine.js';
 import {
-  loadProfiles, saveProfiles, currentProfileId, setCurrentProfileId, migrate,
+  loadProfiles, saveProfiles, currentProfileId, setCurrentProfileId, clearCurrentProfileId, migrate,
+  addDeleted, loadDeleted,
 } from './storage.js';
 import type { AuthUser, Backend, FamilyRollup, LeaderboardRow, V1Kid } from './sync.js';
 import { buildRow } from './sync.js';
@@ -96,7 +97,19 @@ export class Store {
    * Failure is non-fatal: local state is the source of truth, so a dropped
    * network means a stale leaderboard, never lost progress.
    */
-  async publishAll(): Promise<void> {
+  publishAll(): Promise<void> {
+    const run = this.publishNow();
+    this.inflight.add(run);
+    void run.finally(() => this.inflight.delete(run));
+    return run;
+  }
+
+  /** Publishes still running, so a delete can wait for them to land first. */
+  private inflight = new Set<Promise<void>>();
+  /** Kids being deleted: never re-published while their cloud data goes. */
+  private deleting = new Set<string>();
+
+  private async publishNow(): Promise<void> {
     const b = this.backend;
     if (!b?.enabled || !b.user) return;
     // Every profile, not just the active one. The rollup is the parent's
@@ -105,6 +118,7 @@ export class Store {
     // Reads only; the active profile is untouched.
     try {
       for (const p of this.profiles) {
+        if (this.deleting.has(p.id)) continue;
         const s = p.state;
         const rows: LeaderboardRow[] = [];
         for (const id of Object.keys(s.tracks)) {
@@ -198,7 +212,8 @@ export class Store {
     const b = this.backend;
     if (!b?.enabled || !b.user) return [];
     const kids = await b.loadV1Kids();
-    return kids.filter((k) => !this.profiles.some((p) => p.id === k.profileId));
+    const gone = new Set(loadDeleted(this.ls));
+    return kids.filter((k) => !gone.has(k.profileId) && !this.profiles.some((p) => p.id === k.profileId));
   }
 
   /**
@@ -229,6 +244,57 @@ export class Store {
     }
     if (added) this.emit();
     return added;
+  }
+
+  /**
+   * Delete one kid (the consent screen's "Delete anytime"). Cloud first: their
+   * leaderboard rows, weekly history, rollup entry and challenge memberships.
+   * Only once the cloud confirms does the kid leave this device, so a failed
+   * delete never leaves data behind that nothing can reach any more. Signed
+   * out, only this device can be cleared, and the result says so.
+   */
+  async deleteProfile(id: string): Promise<'deleted' | 'device-only' | 'failed'> {
+    const p = this.profiles.find((x) => x.id === id);
+    if (!p) return 'failed';
+    const b = this.backend;
+    const inCloud = !!(b?.enabled && b.user);
+    if (inCloud) {
+      this.deleting.add(id);
+      try {
+        await Promise.all([...this.inflight]);
+        await b!.deleteKidData({
+          key: leaderboardKey(b!.user!.uid, id),
+          profileId: id,
+          trackIds: Object.keys(p.state.tracks),
+          groupIds: (p.state.joinedChallenges ?? []).map((c) => c.groupId),
+        });
+      } catch {
+        this.deleting.delete(id);
+        return 'failed';
+      }
+    }
+    this.profiles = this.profiles.filter((x) => x.id !== id);
+    addDeleted(this.ls, id);
+    this.deleting.delete(id);
+    if (this.currentId === id) this.currentId = this.profiles[0]?.id ?? null;
+    if (!this.currentId) clearCurrentProfileId(this.ls);
+    this.emit();
+    return inCloud ? 'deleted' : 'device-only';
+  }
+
+  /** Delete every kid, then the family's own cloud record. */
+  async deleteEverything(): Promise<'deleted' | 'device-only' | 'failed'> {
+    let result: 'deleted' | 'device-only' = 'device-only';
+    for (const p of [...this.profiles]) {
+      const r = await this.deleteProfile(p.id);
+      if (r === 'failed') return 'failed';
+      result = r;
+    }
+    const b = this.backend;
+    if (b?.enabled && b.user) {
+      try { await b.deleteFamilyRecord(); result = 'deleted'; } catch { return 'failed'; }
+    }
+    return result;
   }
 
   /** Close the welcome-back card for the current kid. */

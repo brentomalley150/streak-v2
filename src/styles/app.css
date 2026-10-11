@@ -283,6 +283,8 @@ p  { margin: 0 0 var(--s-3); color: var(--soft); }
 .prize--locked { opacity: .75; }
 .btn--small { width: auto; min-height: 40px; padding: var(--s-2) var(--s-3); font-size: var(--t-body-sm); flex: 0 0 auto; }
 .btn--link.btn--small { padding: var(--s-2); }
+.btn--danger { background: var(--red); color: var(--text-on-accent); }
+.danger-zone { margin-top: var(--s-3); padding: var(--s-3); border: 2px solid var(--red); border-radius: var(--r-md); background: var(--panel); }
 
 .iconpick, .seg { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-1); }
 .iconpick button {

@@ -72,6 +72,15 @@ export interface Backend {
    * the same database. `[]` when signed out, offline, or new to Beat the Slide.
    */
   loadV1Kids(): Promise<V1Kid[]>;
+  /**
+   * Remove one kid from the cloud: their leaderboard row and weekly history on
+   * each track, their family-rollup entry, and their challenge memberships.
+   * Throws when it can't, so the caller can keep the kid rather than orphan
+   * data no one can reach.
+   */
+  deleteKidData(kid: { key: string; profileId: string; trackIds: string[]; groupIds: string[] }): Promise<void>;
+  /** Remove this account's whole family record (rollup and challenge index). */
+  deleteFamilyRecord(): Promise<void>;
 
   /** Groups (FR13–FR18). All no-ops offline; the app stays usable without them. */
   createGroup(group: Group): Promise<void>;
@@ -218,6 +227,8 @@ export class NullBackend implements Backend {
   async saveRollup(): Promise<void> { /* nothing to do */ }
   async loadRollup(): Promise<FamilyRollup> { return {}; }
   async loadV1Kids(): Promise<V1Kid[]> { return []; }
+  async deleteKidData(): Promise<void> { /* nothing in the cloud */ }
+  async deleteFamilyRecord(): Promise<void> { /* nothing in the cloud */ }
   async createGroup(): Promise<void> { /* offline: nothing to share with */ }
   async loadGroup(): Promise<Group | null> { return null; }
   async joinGroup(): Promise<void> { /* offline */ }
