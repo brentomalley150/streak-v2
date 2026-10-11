@@ -9,7 +9,7 @@ import { getTrack, TRACKS } from '../tracks/index.js';
 import { THEMES, ladderFor, themeInfo } from '../tracks/ladders.js';
 import {
   computeStats, todayKey, addDays, earliestLoggable, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, canEnrollNow,
-  effectiveDef, ideasFor, routinePlan, activityScores, prizeStatus, pendingConfirmations,
+  effectiveDef, variantFor, ideasFor, routinePlan, activityScores, prizeStatus, pendingConfirmations,
   challengeWindow, pointsInWindow,
 } from '../core/engine.js';
 import { el, clear, on } from './dom.js';
@@ -17,6 +17,7 @@ import { leaderboardKey, type LeaderboardRow } from '../core/sync.js';
 import { memberBoard, teamBoard } from '../core/groups.js';
 
 let themeMenuOpen = false;
+let variantMenuOpen = false;
 /** Days back from today the kid is logging; 0 is today. */
 let dayOffset = 0;
 
@@ -194,7 +195,8 @@ export function renderDaily(
   const themeBtn = el('button', { class: 'chip chip--theme', type: 'button', 'aria-expanded': String(themeMenuOpen) },
     [`${th.icon} ${th.label} theme · change`]);
   on(themeBtn, 'click', () => { themeMenuOpen = !themeMenuOpen; rerender(); });
-  screen.append(el('div', { class: 'row', style: 'justify-content:flex-end;margin:0 0 var(--s-2)' }, [themeBtn]));
+  const chipRow = el('div', { class: 'row', style: 'justify-content:flex-end;flex-wrap:wrap;gap:var(--s-2);margin:0 0 var(--s-2)' }, [themeBtn]);
+  screen.append(chipRow);
   if (themeMenuOpen) {
     const grid = el('div', { class: 'grid3', style: 'margin-bottom:var(--s-3)' });
     for (const opt of THEMES.filter((x) => def.themes.includes(x.id))) {
@@ -209,6 +211,35 @@ export function renderDaily(
       grid.append(b);
     }
     screen.append(grid);
+  }
+
+  // Instrument (or any track's variant). Words only, so switching is free. A
+  // kid enrolled before instruments existed, or from the track list, has none
+  // yet — the picker stays open until they choose.
+  if (def.variants) {
+    const vs = def.variants;
+    const cur = variantFor(def, t.variant);
+    const open = variantMenuOpen || !cur;
+    const vBtn = el('button', { class: 'chip chip--theme', type: 'button', 'aria-expanded': String(open) },
+      [cur ? `${cur.icon} ${cur.label} · change` : `🎵 Pick your ${vs.noun}`]);
+    on(vBtn, 'click', () => { variantMenuOpen = !variantMenuOpen; rerender(); });
+    chipRow.prepend(vBtn);
+    if (open) {
+      if (!cur) screen.append(el('p', { class: 'muted', style: 'margin:0 0 var(--s-2)' }, [vs.prompt]));
+      const grid = el('div', { class: 'grid3', style: 'margin-bottom:var(--s-3)' });
+      for (const opt of vs.options) {
+        const b = el('button', { class: 'opt opt--theme', type: 'button', 'aria-pressed': String(opt.id === cur?.id) },
+          [el('span', { class: 'ico' }, [opt.icon]), el('span', { class: 't' }, [opt.label])]);
+        on(b, 'click', () => {
+          variantMenuOpen = false;
+          store.setVariant(String(t.trackId), opt.id);
+          rerender();
+          toast(`${opt.label} — same points, new practice ideas`);
+        });
+        grid.append(b);
+      }
+      screen.append(grid);
+    }
   }
 
   // Which day is being logged. A kid who forgot can go back up to a week

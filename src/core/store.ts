@@ -392,11 +392,12 @@ export class Store {
     if (this.profiles.some((p) => p.id === id)) { this.currentId = id; this.emit(); }
   }
 
-  enroll(trackId: string, theme: string): void {
+  enroll(trackId: string, theme: string, variant?: string): void {
     const s = this.state;
     if (!s) return;
     if (!s.tracks[trackId]) {
       s.tracks[trackId] = newTrackState(asTrackId(trackId), theme);
+      if (variant) s.tracks[trackId]!.variant = variant;
     }
     s.activeTrackId = asTrackId(trackId);
     this.emit();
@@ -412,6 +413,12 @@ export class Store {
   setTheme(trackId: string, theme: string): void {
     const t = this.state?.tracks[trackId];
     if (t) { t.theme = theme; this.emit(); }
+  }
+
+  /** The kid's instrument (or other variant). Words only — points never move. */
+  setVariant(trackId: string, variant: string): void {
+    const t = this.state?.tracks[trackId];
+    if (t) { t.variant = variant; this.emit(); }
   }
 
   recordConsent(guardian: boolean, data: boolean): void {

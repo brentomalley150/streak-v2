@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   bonusPoints, canLogDate, challengeWindow, computeStats, confirmActivity, currentStreak, earliestLoggable, effectiveDef,
-  ideasFor, makeEntry, pendingConfirmations, pointsForEntry, pointsInWindow, prizeStatus,
+  ideaRotation, ideasFor, makeEntry, pendingConfirmations, pointsForEntry, pointsInWindow, prizeStatus,
   routinePlan, toggleActivity,
 } from './engine.js';
 import { buildRow, weeklyPoints } from './sync.js';
@@ -128,9 +128,25 @@ describe('theme ideas for each activity (FR24)', () => {
   it("shows the kid's theme, rotates daily, and is stable within a day", () => {
     const a = ideasFor(READING_SLIDE, 'write', 'animals', d('2026-10-10'));
     expect(a).toHaveLength(2);
-    expect(READING_SLIDE.ideas!['write']!['animals']).toEqual(expect.arrayContaining(a));
+    expect(ideaRotation(READING_SLIDE.ideas!['write']!, 'animals')).toEqual(expect.arrayContaining(a));
     expect(ideasFor(READING_SLIDE, 'write', 'animals', d('2026-10-10'))).toEqual(a);
     expect(ideasFor(READING_SLIDE, 'write', 'animals', d('2026-10-11'))).not.toEqual(a);
+  });
+
+  it("mixes the theme's ideas evenly into the general ones", () => {
+    const pool = {
+      '*': Array.from({ length: 14 }, (_, i) => `g${i + 1}`),
+      chess: Array.from({ length: 7 }, (_, i) => `t${i + 1}`),
+    };
+    const r = ideaRotation(pool, 'chess');
+    expect(r).toHaveLength(21);
+    expect(new Set(r).size).toBe(21); // every idea once per cycle
+    expect(r.filter((x) => x.startsWith('t'))).toEqual(pool.chess); // theme order kept
+    // Spread out, not bunched: never more than two general ideas in a row,
+    // so the theme shows up on two days out of every three.
+    expect(r.join(',')).not.toMatch(/g\d+,g\d+,g\d+/);
+    // A theme with no list of its own just gets the general ones.
+    expect(ideaRotation(pool, 'dance')).toEqual(pool['*']);
   });
 
   it("falls back to the '*' list for a theme without its own", () => {
@@ -190,6 +206,66 @@ describe('logging a day the kid forgot', () => {
     const before = weeklyPoints(READING_SLIDE, t, new Date('2026-10-11T12:00:00'));
     store.toggle('read', d('2026-10-04')); // a week ago Sunday
     expect(weeklyPoints(READING_SLIDE, t, new Date('2026-10-11T12:00:00'))).toBe(before);
+  });
+});
+
+describe('music: the kid picks an instrument', () => {
+  const day = (acts: string[]) => stateWith(MUSIC_PRACTICE, [['2026-06-02', acts]]);
+
+  it('offers drums, guitar, piano and trombone', () => {
+    const ids = MUSIC_PRACTICE.variants!.options.map((v) => v.id);
+    expect(ids).toEqual(expect.arrayContaining(['drums', 'guitar', 'piano', 'trombone']));
+  });
+
+  it("swaps the words — drums get drum ideas, not piano ones", () => {
+    const drums = effectiveDef(MUSIC_PRACTICE, { ...day([]), variant: 'drums' });
+    expect(drums.activities.find((a) => a.id === 'practice')!.icon).toBe('🥁');
+    const ideas = ideasFor(drums, 'practice', 'chess', d('2026-10-10'), 10);
+    expect(ideas.join(' ')).toMatch(/fill|groove|paradiddle|roll/i);
+    expect(ideas.join(' ')).not.toMatch(/hands together|bar/);
+  });
+
+  it("never moves a point — same score on every instrument", () => {
+    const base = computeStats(MUSIC_PRACTICE, day(['practice', 'learn']), LADDERS['chess']!, d('2026-06-02')).points;
+    for (const v of MUSIC_PRACTICE.variants!.options) {
+      const s = { ...day(['practice', 'learn']), variant: v.id };
+      expect(computeStats(MUSIC_PRACTICE, s, LADDERS['chess']!, d('2026-06-02')).points).toBe(base);
+      expect(effectiveDef(MUSIC_PRACTICE, s).activities.map((a) => [a.id, a.points]))
+        .toEqual(MUSIC_PRACTICE.activities.map((a) => [a.id, a.points]));
+    }
+  });
+
+  it("a theme's own ideas still show alongside the instrument's", () => {
+    const drums = effectiveDef(MUSIC_PRACTICE, { ...day([]), variant: 'drums' });
+    expect(ideaRotation(drums.ideas!['listen']!, 'gaming'))
+      .toEqual(expect.arrayContaining([...MUSIC_PRACTICE.ideas!['listen']!['gaming']!]));
+  });
+
+  it('no pick (or an unknown one) plays the general track', () => {
+    expect(effectiveDef(MUSIC_PRACTICE, day([]))).toBe(MUSIC_PRACTICE);
+    expect(effectiveDef(MUSIC_PRACTICE, { ...day([]), variant: 'kazoo' })).toBe(MUSIC_PRACTICE);
+  });
+
+  it('every variant override points at a real activity and field', () => {
+    for (const t of TRACKS) {
+      for (const v of t.variants?.options ?? []) {
+        for (const [actId, o] of Object.entries(v.activities ?? {})) {
+          const a = t.activities.find((x) => String(x.id) === actId);
+          expect(a, `${v.id}.${actId}`).toBeDefined();
+          for (const f of Object.keys(o.placeholders ?? {})) expect(a!.fields.some((x) => x.id === f)).toBe(true);
+        }
+        for (const actId of Object.keys(v.ideas ?? {})) expect(t.activities.some((x) => String(x.id) === actId)).toBe(true);
+      }
+    }
+  });
+
+  it('the store records the pick at enroll and on change', () => {
+    const store = new Store(new MemStorage());
+    store.addProfile('Declan');
+    store.enroll('music-practice', 'chess', 'drums');
+    expect(store.state!.tracks['music-practice']!.variant).toBe('drums');
+    store.setVariant('music-practice', 'guitar');
+    expect(store.state!.tracks['music-practice']!.variant).toBe('guitar');
   });
 });
 

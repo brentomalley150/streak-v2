@@ -52,7 +52,7 @@ export const LADDERS: Record<string, readonly Rank[]> = {
   music: ladder([
     ['Beginner', '🎵', 'First Notes'],
     ['Player', '🎶', 'Finding Rhythm'],
-    ['Soloist', '🎼', 'Centre Stage'],
+    ['Soloist', '🎼', 'Center Stage'],
     ['Bandleader', '🥁', 'Setting the Beat'],
     ['Virtuoso', '🎹', 'Serious Skill'],
     ['Headliner', '🎤', 'Top of the Bill'],
