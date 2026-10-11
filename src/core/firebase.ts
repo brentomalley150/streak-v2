@@ -9,7 +9,7 @@ import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Database } from 'firebase/database';
 import type { AuthUser, Backend, FamilyRollup, LeaderboardRow } from './sync.js';
-import type { Group, GroupMember } from './groups.js';
+import type { Group, GroupMember, Team } from './groups.js';
 import { NullBackend } from './sync.js';
 
 function readConfig(): Record<string, string> | null {
@@ -134,9 +134,20 @@ class FirebaseBackend implements Backend {
     // unhandled rejection — most likely cause is the groups rules not being
     // deployed yet, which looks identical to any other permission denial.
     try {
-      await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${group.id}`), {
-        meta: group.meta, members: group.members ?? {},
-      });
+      // A multi-path update, not one set() at the group root: the rules grant
+      // write on meta and on each team, never on the group node itself, so a
+      // root-level set would be refused even for the owner.
+      const paths: Record<string, unknown> = {
+        [`v2/groups/${group.id}/meta`]: group.meta,
+        // The family's own index of challenges it runs. There is no read on
+        // v2/groups as a whole (that would expose every group), so "your
+        // challenges" is looked up through this instead.
+        [`v2/families/${this.user.uid}/groups/${group.id}`]: true,
+      };
+      for (const [tid, t] of Object.entries(group.teams ?? {})) {
+        paths[`v2/groups/${group.id}/teams/${tid}`] = t;
+      }
+      await this.sdk.update(this.sdk.ref(this.db), paths);
     } catch (err) {
       console.warn('[beat-the-slide] could not create the challenge.', err);
       throw err;
@@ -149,7 +160,7 @@ class FirebaseBackend implements Backend {
       const v = snap.val();
       // A bad code is an ordinary outcome, not an error: someone mistyped it.
       if (!v?.meta) return null;
-      return { id: groupId, meta: v.meta, members: v.members ?? {} };
+      return { id: groupId, meta: v.meta, members: v.members ?? {}, teams: v.teams ?? {} };
     } catch {
       return null;
     }
@@ -174,14 +185,39 @@ class FirebaseBackend implements Backend {
   async loadMyGroups(): Promise<Group[]> {
     if (!this.user) return [];
     try {
-      const snap = await this.sdk.get(this.sdk.ref(this.db, 'v2/groups'));
-      const all = (snap.val() ?? {}) as Record<string, { meta?: Group['meta']; members?: Group['members'] }>;
-      return Object.entries(all)
-        .filter(([, v]) => v?.meta?.ownerUid === this.user!.uid)
-        .map(([id, v]) => ({ id, meta: v.meta!, members: v.members ?? {} }));
+      const snap = await this.sdk.get(this.sdk.ref(this.db, `v2/families/${this.user.uid}/groups`));
+      const ids = Object.keys((snap.val() ?? {}) as Record<string, true>);
+      const groups = await Promise.all(ids.map((id) => this.loadGroup(id)));
+      const uid = this.user.uid;
+      // A group you created, or one where you run a team (another teacher's class).
+      return groups.filter((g): g is Group => !!g && (g.meta.ownerUid === uid
+        || Object.values(g.teams ?? {}).some((t) => t.ownerUid === uid)));
     } catch {
       return [];
     }
+  }
+
+  async saveMemberScore(groupId: string, key: string, points: number): Promise<void> {
+    if (!this.user) return;
+    await this.sdk.update(this.sdk.ref(this.db, `v2/groups/${groupId}/members/${key}`), { points });
+  }
+
+  async createTeam(groupId: string, teamId: string, team: Team): Promise<void> {
+    if (!this.user) return;
+    try {
+      await this.sdk.update(this.sdk.ref(this.db), {
+        [`v2/groups/${groupId}/teams/${teamId}`]: team,
+        [`v2/families/${this.user.uid}/groups/${groupId}`]: true,
+      });
+    } catch (err) {
+      console.warn('[beat-the-slide] could not add the team.', err);
+      throw err;
+    }
+  }
+
+  async deleteTeam(groupId: string, teamId: string): Promise<void> {
+    if (!this.user) return;
+    await this.sdk.set(this.sdk.ref(this.db, `v2/groups/${groupId}/teams/${teamId}`), null);
   }
 
   async loadRollup(): Promise<FamilyRollup> {

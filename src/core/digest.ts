@@ -25,7 +25,8 @@
 import type { DayEntry, TrackDefinition, TrackState } from './types.js';
 import { asDateKey } from './types.js';
 import { weekStartKey } from './sync.js';
-import { todayKey, addDays } from './engine.js';
+import { todayKey, addDays, effectiveDef, pointsForEntry } from './engine.js';
+import { projectionFor } from './projection.js';
 
 /** What the loop RETRIEVED — the evidence every claim must cite. */
 export interface WeekFacts {
@@ -99,15 +100,22 @@ export function retrieveWeek(
     for (const a of def.activities) {
       if (e.completed[a.id]) {
         perActivity[a.id] = (perActivity[a.id] ?? 0) + 1;
-        points += a.points;
         active = true;
       }
     }
+    // The engine's own scoring: retired activities count, and chores count
+    // only once a parent has confirmed them.
+    points += pointsForEntry(def, e);
     if (active) logged += 1;
     for (const [k, v] of Object.entries(e.values)) {
       if (typeof v === 'number') totals[k] = (totals[k] ?? 0) + v;
     }
   }
+
+  // This week's bonus activity, if done.
+  const per = def.weeklyBonusPoints ?? 0;
+  const bonusThisWeek = Object.values(state.bonusCompleted ?? {}).filter((d) => d >= start && d <= today).length;
+  points += bonusThisWeek * per;
 
   // Days elapsed in the week so far — calendar days, NOT number of entries.
   const daysInWeek = Math.max(1, Math.min(7,
@@ -130,7 +138,8 @@ export function retrieveWeek(
     daysLogged: logged,
     daysInWeek,
     pointsThisWeek: points,
-    maxPointsThisWeek: def.activities.reduce((n, a) => n + a.points, 0) * daysInWeek,
+    // A done bonus raises the ceiling too, so points never exceed "possible".
+    maxPointsThisWeek: def.activities.reduce((n, a) => n + a.points, 0) * daysInWeek + bonusThisWeek * per,
     perActivity,
     totals,
     longestGap: gap,
@@ -284,7 +293,8 @@ export function buildDigest(args: {
   def: TrackDefinition; state: TrackState; kidName: string;
   now?: Date; diagnostician?: Diagnostician;
 }): Digest {
-  const { def, state, kidName } = args;
+  const { state, kidName } = args;
+  const def = effectiveDef(args.def, state);
   const facts = retrieveWeek(def, state, args.now ?? new Date());
   const dx = args.diagnostician ?? new RuleDiagnostician();
   return {
@@ -293,6 +303,8 @@ export function buildDigest(args: {
     kidName,
     facts,
     insight: dx.diagnose(facts, def),
-    projection: projectionNote(facts, def),
+    // Opt-in only (FR25): a parent who never turned the projection on never
+    // sees a fall estimate, here or anywhere else.
+    projection: projectionFor(def, state, todayKey(args.now ?? new Date())) ? projectionNote(facts, def) : null,
   };
 }

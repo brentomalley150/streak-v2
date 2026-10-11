@@ -141,7 +141,7 @@ p  { margin: 0 0 var(--s-3); color: var(--soft); }
 .menu button[aria-current="true"] { color: var(--purple); font-weight: 800; background: var(--panel-alt); }
 .menu .meta { margin-left: auto; font-size: var(--t-caption); color: var(--muted); font-weight: 700; }
 
-.acts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-bottom: var(--s-3); }
+.acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--s-2); margin-bottom: var(--s-3); }
 .act {
   background: var(--panel); border: 2px solid var(--border); border-radius: var(--r-md);
   padding: var(--s-3) var(--s-2); min-height: 76px; cursor: pointer; font: inherit; color: var(--ink);
@@ -225,3 +225,60 @@ p  { margin: 0 0 var(--s-3); color: var(--soft); }
 .kidrow .grow { flex: 1; min-width: 0; }
 .kidrow:hover:not([disabled]) { color: var(--purple); }
 .kidrow[disabled] { cursor: default; opacity: .62; }
+
+/* ── PRD v2 features: themes, ideas, bonus, prizes, chores, challenges ── */
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); }
+.opt--theme { flex-direction: column; align-items: center; text-align: center; gap: var(--s-1); }
+.chip--theme {
+  font: inherit; font-size: var(--t-caption); font-weight: 700; cursor: pointer;
+  color: var(--soft); background: var(--panel-alt); border: 1px solid var(--border);
+  min-height: 32px;
+}
+.act .mins { font-size: var(--t-micro); font-weight: 700; color: var(--muted); }
+.act .done--wait { color: var(--gold-text); }
+
+.idea { padding: var(--s-2) 0; border-top: 1px solid var(--border); }
+.idea:first-of-type { border-top: none; padding-top: 0; }
+.idea-h { font-weight: 800; font-size: var(--t-body-sm); margin-bottom: 2px; }
+.idea-focus { font-size: var(--t-body-sm); font-weight: 700; color: var(--green-text); }
+.idea-t { font-size: var(--t-body-sm); color: var(--soft); line-height: 1.45; }
+
+.prize { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) 0; border-top: 1px solid var(--border); min-height: 48px; }
+.prize:first-of-type { border-top: none; }
+.prize .grow { flex: 1; min-width: 0; }
+.prize-ico { font-size: 22px; width: 28px; text-align: center; flex: 0 0 auto; }
+.prize--locked { opacity: .75; }
+.btn--small { width: auto; min-height: 40px; padding: var(--s-2) var(--s-3); font-size: var(--t-body-sm); flex: 0 0 auto; }
+.btn--link.btn--small { padding: var(--s-2); }
+
+.iconpick, .seg { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-1); }
+.iconpick button {
+  width: 44px; height: 44px; font-size: 20px; cursor: pointer;
+  background: var(--panel); border: 2px solid var(--border); border-radius: var(--r-sm);
+}
+.iconpick button[aria-pressed="true"] { border-color: var(--purple); background: var(--panel-alt); }
+.seg button {
+  font: inherit; font-weight: 700; font-size: var(--t-body-sm); cursor: pointer; min-height: 44px;
+  padding: var(--s-2) var(--s-3); color: var(--soft);
+  background: var(--panel); border: 2px solid var(--border); border-radius: var(--r-pill);
+}
+.seg button[aria-pressed="true"] { border-color: var(--purple); color: var(--purple); background: var(--panel-alt); }
+
+.toggle {
+  display: inline-flex; align-items: center; gap: var(--s-2); cursor: pointer;
+  font: inherit; font-weight: 700; font-size: var(--t-body-sm); color: var(--soft);
+  background: none; border: none; min-height: 44px; flex: 0 0 auto;
+}
+.toggle-knob {
+  width: 40px; height: 24px; border-radius: var(--r-pill); background: var(--border);
+  position: relative; transition: background .15s;
+}
+.toggle-knob::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--panel); box-shadow: var(--e-1); transition: left .15s;
+}
+.toggle[aria-checked="true"] .toggle-knob { background: var(--purple); }
+.toggle[aria-checked="true"] .toggle-knob::after { left: 19px; }
+.toggle:disabled { opacity: .45; cursor: not-allowed; }
+.proj-range { font-size: var(--t-h1); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+details summary { cursor: pointer; font-weight: 700; color: var(--purple); min-height: 32px; }

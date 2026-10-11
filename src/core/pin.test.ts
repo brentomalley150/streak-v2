@@ -184,6 +184,9 @@ describe('sync claim on the handoff screen', () => {
       async joinGroup() {},
       async leaveGroup() {},
       async loadMyGroups() { return []; },
+      async saveMemberScore() {},
+      async createTeam() {},
+      async deleteTeam() {},
     });
 
     expect(s.syncEnabled).toBe(true);

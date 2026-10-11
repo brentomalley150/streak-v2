@@ -46,6 +46,9 @@ class RecordingBackend implements Backend {
   async joinGroup() {}
   async leaveGroup() {}
   async loadMyGroups() { return []; }
+  async saveMemberScore() {}
+  async createTeam() {}
+  async deleteTeam() {}
 }
 
 /**

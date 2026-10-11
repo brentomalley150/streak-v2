@@ -4,11 +4,20 @@
  */
 import type { Store } from '../core/store.js';
 import type { TrackState } from '../core/types.js';
+import { asDateKey } from '../core/types.js';
 import { getTrack, TRACKS } from '../tracks/index.js';
-import { LADDERS } from '../tracks/ladders.js';
-import { computeStats, todayKey, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, canEnrollNow } from '../core/engine.js';
+import { THEMES, ladderFor, themeInfo } from '../tracks/ladders.js';
+import {
+  computeStats, todayKey, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, canEnrollNow,
+  effectiveDef, variantFor, ideasFor, routinePlan, activityScores, prizeStatus, pendingConfirmations,
+  challengeWindow, pointsInWindow,
+} from '../core/engine.js';
 import { el, clear, on } from './dom.js';
 import { leaderboardKey, type LeaderboardRow } from '../core/sync.js';
+import { memberBoard, teamBoard } from '../core/groups.js';
+
+let themeMenuOpen = false;
+let variantMenuOpen = false;
 
 let menuOpen = false;
 let kidMenuOpen = false;
@@ -25,13 +34,18 @@ export function renderDaily(
   root: HTMLElement, store: Store,
   onMarketplace: () => void, onDigest?: () => void, onAddKid?: () => void,
   onRollup?: () => void, onSetPin?: () => void, onGroups?: () => void,
+  onPrizes?: () => void, onScores?: () => void,
 ): void {
   const s = store.state;
   const t: TrackState | null = store.activeTrack;
   if (!s || !t) { onMarketplace(); return; }
 
-  const def = getTrack(t.trackId);
-  const ladder = LADDERS[def.ladder] ?? LADDERS['chess']!;
+  const rerender = (): void => renderDaily(
+    root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups, onPrizes, onScores,
+  );
+
+  const def = effectiveDef(getTrack(t.trackId), t);
+  const ladder = ladderFor(def, t);
   const stats = computeStats(def, t, ladder);
   const today = todayKey();
   const entry = getEntry(t, def, today);
@@ -65,7 +79,7 @@ export function renderDaily(
     ]);
     on(who, 'click', () => {
       kidMenuOpen = !kidMenuOpen;
-      renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups);
+      rerender();
     });
     screen.append(who);
 
@@ -81,11 +95,11 @@ export function renderDaily(
         ]);
         on(b, 'click', () => {
           kidMenuOpen = false;
-          if (p.id === s.profileId) { renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups); return; }
+          if (p.id === s.profileId) { rerender(); return; }
           store.switchProfile(p.id);
           // Close the track menu too: it was showing the previous kid's tracks.
           menuOpen = false;
-          renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups);
+          rerender();
           toast(`Switched to ${p.state.playerName || 'this kid'}`);
         });
         kids.append(b);
@@ -111,7 +125,7 @@ export function renderDaily(
     ]),
     el('span', { class: 'muted', style: 'font-weight:700' }, [menuOpen ? '▲ Switch' : '▼ Switch']),
   ]);
-  on(sw, 'click', () => { menuOpen = !menuOpen; renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups); });
+  on(sw, 'click', () => { menuOpen = !menuOpen; rerender(); });
   screen.append(sw);
 
   if (menuOpen) {
@@ -122,11 +136,11 @@ export function renderDaily(
       const active = id === String(s.activeTrackId);
       const b = el('button', { type: 'button', 'aria-current': String(active) }, [
         el('span', {}, [d.icon]), el('span', {}, [d.name]),
-        el('span', { class: 'meta' }, [`${computeStats(d, st, LADDERS[d.ladder] ?? ladder).currentStreak}d streak`]),
+        el('span', { class: 'meta' }, [`${computeStats(d, st, ladderFor(d, st)).currentStreak}d streak`]),
       ]);
       on(b, 'click', () => {
         store.setActiveTrack(id); menuOpen = false;
-        renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups); toast(`Switched to ${d.name}`);
+        rerender(); toast(`Switched to ${d.name}`);
       });
       menu.append(b);
     }
@@ -157,31 +171,120 @@ export function renderDaily(
     el('div', { class: 'bar' }, [el('i', { style: `width:${Math.max(0, Math.min(100, pct))}%` })]),
   ]));
 
-  // activities — straight from the definition
+  // Theme (FR23). The kid's own choice, changeable any time; points and rank
+  // level carry over because every ladder shares the same thresholds.
+  const th = themeInfo(t.theme);
+  const themeBtn = el('button', { class: 'chip chip--theme', type: 'button', 'aria-expanded': String(themeMenuOpen) },
+    [`${th.icon} ${th.label} theme · change`]);
+  on(themeBtn, 'click', () => { themeMenuOpen = !themeMenuOpen; rerender(); });
+  const chipRow = el('div', { class: 'row', style: 'justify-content:flex-end;flex-wrap:wrap;gap:var(--s-2);margin:0 0 var(--s-2)' }, [themeBtn]);
+  screen.append(chipRow);
+  if (themeMenuOpen) {
+    const grid = el('div', { class: 'grid3', style: 'margin-bottom:var(--s-3)' });
+    for (const opt of THEMES.filter((x) => def.themes.includes(x.id))) {
+      const b = el('button', { class: 'opt opt--theme', type: 'button', 'aria-pressed': String(opt.id === t.theme) },
+        [el('span', { class: 'ico' }, [opt.icon]), el('span', { class: 't' }, [opt.label])]);
+      on(b, 'click', () => {
+        themeMenuOpen = false;
+        store.setTheme(String(t.trackId), opt.id);
+        rerender();
+        toast(`${opt.label} theme — same points, new rank names`);
+      });
+      grid.append(b);
+    }
+    screen.append(grid);
+  }
+
+  // Instrument (or any track's variant). Words only, so switching is free. A
+  // kid enrolled before instruments existed, or from the track list, has none
+  // yet — the picker stays open until they choose.
+  if (def.variants) {
+    const vs = def.variants;
+    const cur = variantFor(def, t.variant);
+    const open = variantMenuOpen || !cur;
+    const vBtn = el('button', { class: 'chip chip--theme', type: 'button', 'aria-expanded': String(open) },
+      [cur ? `${cur.icon} ${cur.label} · change` : `🎵 Pick your ${vs.noun}`]);
+    on(vBtn, 'click', () => { variantMenuOpen = !variantMenuOpen; rerender(); });
+    chipRow.prepend(vBtn);
+    if (open) {
+      if (!cur) screen.append(el('p', { class: 'muted', style: 'margin:0 0 var(--s-2)' }, [vs.prompt]));
+      const grid = el('div', { class: 'grid3', style: 'margin-bottom:var(--s-3)' });
+      for (const opt of vs.options) {
+        const b = el('button', { class: 'opt opt--theme', type: 'button', 'aria-pressed': String(opt.id === cur?.id) },
+          [el('span', { class: 'ico' }, [opt.icon]), el('span', { class: 't' }, [opt.label])]);
+        on(b, 'click', () => {
+          variantMenuOpen = false;
+          store.setVariant(String(t.trackId), opt.id);
+          rerender();
+          toast(`${opt.label} — same points, new practice ideas`);
+        });
+        grid.append(b);
+      }
+      screen.append(grid);
+    }
+  }
+
+  // activities — straight from the (effective) definition
+  const plan = routinePlan(def, t.baseline);
   const acts = el('div', { class: 'acts' });
   for (const a of def.activities) {
-    const doneNow = !!entry.completed[a.id];
-    const b = el('button', { class: 'act', type: 'button', 'aria-pressed': String(doneNow) }, [
+    const ticked = !!entry.completed[a.id];
+    const waiting = ticked && !activityScores(a, entry);
+    const b = el('button', { class: 'act', type: 'button', 'aria-pressed': String(ticked) }, [
       el('span', { class: 'ico' }, [a.icon]),
       el('span', { class: 'label' }, [a.label]),
-      ...(doneNow ? [el('span', { class: 'done' }, ['✓ Done'])] : []),
+      ...(a.minutes ? [el('span', { class: 'mins' }, [`${a.minutes} min`])] : []),
+      ...(ticked
+        ? [el('span', { class: waiting ? 'done done--wait' : 'done' }, [waiting ? '⏳ Grown-up checks' : '✓ Done'])]
+        : []),
     ]);
-    on(b, 'click', () => { store.toggle(String(a.id)); renderDaily(root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups); });
+    on(b, 'click', () => { store.toggle(String(a.id)); rerender(); });
     acts.append(b);
   }
   screen.append(acts);
 
-  const earned = def.activities.reduce((n, a) => (entry.completed[a.id] ? n + a.points : n), 0);
+  const earned = def.activities.reduce((n, a) => (activityScores(a, entry) ? n + a.points : n), 0);
+  const waitingCount = def.activities.filter((a) => entry.completed[a.id] && !activityScores(a, entry)).length;
   screen.append(el('p', { class: 'muted', style: 'text-align:center' }, [
-    `Today: ${earned} of ${maxPointsPerDay(def)} points`,
+    `Today: ${earned} of ${maxPointsPerDay(def)} points`
+      + (waitingCount ? ` · ${waitingCount} waiting for a grown-up` : ''),
   ]));
 
-  // weekly challenge
+  // Today's plan + theme ideas (FR22, FR24). The focus names a skill, never a
+  // score — the kid sees the nudge, not the number.
+  const ideasBox = el('div', { class: 'mod' }, [el('div', { class: 'head' }, [`Today's ideas · ${th.label}`])]);
+  let anyIdea = false;
+  for (const a of def.activities) {
+    const lines: string[] = [];
+    // The book range is derived from the Lexile, so it stays on the parent
+    // screen: showing it here would give the score away (FR21).
+    if (plan.level?.activityId === a.id) lines.push('Pick a just-right book — not too easy, not too hard.');
+    if (plan.focus?.activityId === a.id) lines.push(plan.focus.tip);
+    const ideas = ideasFor(def, String(a.id), t.theme, today);
+    if (!lines.length && !ideas.length) continue;
+    anyIdea = true;
+    const row = el('div', { class: 'idea' }, [el('div', { class: 'idea-h' }, [`${a.icon} ${a.label}`])]);
+    for (const l of lines) row.append(el('div', { class: 'idea-focus' }, [l]));
+    for (const i of ideas) row.append(el('div', { class: 'idea-t' }, [`• ${i}`]));
+    ideasBox.append(row);
+  }
+  if (anyIdea) screen.append(ideasBox);
+
+  // Weekly bonus activity (FR26) — optional extra points, never the streak.
   const wk = weekNumber(def, t.startDate, today);
   const ch = challengeForWeek(def, wk);
   if (ch) {
+    const bonusDone = !!t.bonusCompleted?.[wk];
+    const per = def.weeklyBonusPoints ?? 0;
+    const mark = el('button', { class: bonusDone ? 'btn btn--ghost' : 'btn', type: 'button', style: 'margin-top:var(--s-3)' },
+      [bonusDone ? '✓ Done — tap to undo' : `I did it! +${per} pts`]);
+    on(mark, 'click', () => {
+      store.toggleBonus(wk);
+      rerender();
+      if (!bonusDone) toast(`Bonus done! +${per} points`);
+    });
     screen.append(el('div', { class: 'mod' }, [
-      el('div', { class: 'head' }, [`Week ${wk} challenge`]),
+      el('div', { class: 'head' }, [`Week ${wk} bonus · +${per} pts · optional`]),
       el('div', { class: 'row' }, [
         el('span', { style: 'font-size:22px' }, [ch.emoji]),
         el('div', {}, [
@@ -189,7 +292,77 @@ export function renderDaily(
           el('div', { class: 'muted' }, [ch.short]),
         ]),
       ]),
+      ...(per > 0 ? [mark] : []),
     ]));
+  }
+
+  // Prizes (FR27–FR28). Unlock like ranks; cashing in never costs points.
+  if (t.prizes.length) {
+    const box = el('div', { class: 'mod' }, [el('div', { class: 'head' }, ['Prizes'])]);
+    for (const pz of t.prizes) {
+      const st = prizeStatus(pz, stats.points);
+      const right: Node[] = [];
+      if (st === 'locked') right.push(el('span', { class: 'muted' }, [`${pz.cost - stats.points} pts to go`]));
+      else if (st === 'unlocked') {
+        const ask = el('button', { class: 'btn btn--small', type: 'button' }, ['Cash in']);
+        on(ask, 'click', () => { store.requestPrize(String(t.trackId), pz.id); rerender(); toast('Asked a grown-up — your points stay!'); });
+        right.push(ask);
+      } else if (st === 'requested') right.push(el('span', { class: 'chip' }, ['⏳ Asked']));
+      else right.push(el('span', { class: 'chip chip--alive' }, ['🎉 Cashed in']));
+      box.append(el('div', { class: `prize prize--${st}` }, [
+        el('span', { class: 'prize-ico' }, [st === 'locked' ? '🔒' : pz.icon]),
+        el('span', { class: 'grow' }, [
+          el('div', { style: 'font-weight:800' }, [pz.name]),
+          el('div', { class: 'muted' }, [`Unlocks at ${pz.cost} pts`]),
+        ]),
+        ...right,
+      ]));
+    }
+    box.append(el('p', { class: 'muted', style: 'margin:var(--s-2) 0 0' },
+      ['Cashing in never takes away your points or your rank.']));
+    screen.append(box);
+  }
+
+  // Challenges this kid is in on this track (FR29, FR31).
+  const mine = (s.joinedChallenges ?? []).filter((c) => c.trackId === String(t.trackId));
+  for (const jc of mine) {
+    const win = challengeWindow(asDateKey(jc.startDate), jc.lengthWeeks, today);
+    const pts = pointsInWindow(def, t, asDateKey(jc.startDate), jc.lengthWeeks);
+    const when = win.phase === 'upcoming' ? `Starts ${jc.startDate}`
+      : win.phase === 'ended' ? 'Finished' : `Day ${win.day} of ${win.totalDays}`;
+    const board = el('div', {}, []);
+    screen.append(el('div', { class: 'mod' }, [
+      el('div', { class: 'head' }, [`🎯 ${jc.name} · ${when}`]),
+      el('p', { style: 'margin:0 0 var(--s-2)' }, [`You've earned ${pts} pts in this challenge.`]),
+      board,
+    ]));
+    if (store.syncEnabled && store.user) {
+      const me = leaderboardKey(store.user.uid, s.profileId);
+      void store.loadGroup(jc.groupId).then((g) => {
+        if (!g) return;
+        clear(board);
+        if (g.meta.mode === 'teams') {
+          teamBoard(g).slice(0, 5).forEach((tm, i) => {
+            const isMine = tm.teamId === jc.teamId;
+            board.append(el('div', { class: 'row', style: `padding:4px 0${isMine ? ';font-weight:800' : ''}` }, [
+              el('span', { class: 'muted', style: 'width:18px' }, [String(i + 1)]),
+              el('span', { style: 'flex:1;min-width:0' }, [isMine ? `${tm.name} (your team)` : tm.name]),
+              el('span', { class: 'muted' }, [`avg ${Math.round(tm.average)}`]),
+            ]));
+          });
+        } else {
+          memberBoard(g).slice(0, 5).forEach((m, i) => {
+            const isMe = m.key === me;
+            board.append(el('div', { class: 'row', style: `padding:4px 0${isMe ? ';font-weight:800' : ''}` }, [
+              el('span', { class: 'muted', style: 'width:18px' }, [String(i + 1)]),
+              el('span', { style: 'font-size:16px' }, [m.avatar]),
+              el('span', { style: 'flex:1;min-width:0' }, [isMe ? `${m.name} (you)` : m.name]),
+              el('span', { style: 'font-weight:800;color:var(--gold)' }, [String(m.points ?? 0)]),
+            ]));
+          });
+        }
+      });
+    }
   }
 
   // stat columns — declared by the track
@@ -244,6 +417,24 @@ export function renderDaily(
         ? 'Sign in to see how other families are doing on this track.'
         : 'Leaderboards need an internet connection.',
     ]));
+  }
+
+  // Prizes and approvals. Counts what is waiting so a parent sees it at a glance.
+  if (onPrizes) {
+    const waiting = t.prizes.filter((p) => p.requestedAt && !p.claimed).length
+      + pendingConfirmations(getTrack(t.trackId), t).length;
+    const pz = el('button', { class: 'btn btn--ghost', type: 'button', style: 'margin-bottom:var(--s-2)' },
+      [`🎁 Prizes${def.activities.some((a) => a.needsParentConfirm) || def.customizableActivities ? ', chores' : ''} & approvals (for parents)${waiting ? ` · ${waiting} waiting` : ''}`]);
+    on(pz, 'click', onPrizes);
+    screen.append(pz);
+  }
+
+  // Scores, routine and the opt-in fall estimate — only where the track has them.
+  if (onScores && def.outcomeModel) {
+    const sc = el('button', { class: 'btn btn--ghost', type: 'button', style: 'margin-bottom:var(--s-2)' },
+      ['📈 Test scores & fall estimate (for parents)']);
+    on(sc, 'click', onScores);
+    screen.append(sc);
   }
 
   // Parent entry point. Deliberately understated on the kid's screen.
@@ -327,7 +518,9 @@ export function renderMarketplace(root: HTMLElement, store: Store, back: () => v
     } else if (allowed) {
       const b = el('button', { class: 'btn', type: 'button', style: 'margin-top:10px' },
         [`Enroll ${s.playerName || ''}`.trim()]);
-      on(b, 'click', () => { store.enroll(String(def.trackId), def.themes[0] ?? 'chess'); back(); });
+      // Carry the kid's current theme into the new track, so it feels like theirs.
+      const cur = store.activeTrack?.theme;
+      on(b, 'click', () => { store.enroll(String(def.trackId), cur && def.themes.includes(cur) ? cur : (def.themes[0] ?? 'chess')); back(); });
       card.append(b);
     } else {
       // Reached only when billing is enabled; the copy names no price, because

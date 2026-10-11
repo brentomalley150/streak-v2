@@ -83,16 +83,32 @@
             "trackId":   { ".validate": "newData.isString()" },
             "createdAt": { ".validate": "newData.isNumber()" },
             "open":      { ".validate": "newData.isBoolean()" },
+            "startDate":   { ".validate": "newData.isString() && newData.val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)" },
+            "lengthWeeks": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 52" },
+            "mode":        { ".validate": "newData.val() === 'kids' || newData.val() === 'teams'" },
             "$other":    { ".validate": false }
           },
           "members": {
             "$key": {
-              ".write": "auth != null && ($key.beginsWith(auth.uid + '_') || root.child('v2').child('groups').child($groupId).child('meta').child('ownerUid').val() === auth.uid)",
-              ".validate": "!newData.exists() || newData.hasChildren(['name','avatar','joinedAt'])",
+              ".write": "auth != null && ($key.beginsWith(auth.uid + '_') || (!newData.exists() && (root.child('v2').child('groups').child($groupId).child('meta').child('ownerUid').val() === auth.uid || (data.child('team').isString() && root.child('v2').child('groups').child($groupId).child('teams').child(data.child('team').val()).child('ownerUid').val() === auth.uid))))",
+              ".validate": "!newData.exists() || (newData.hasChildren(['name','avatar','joinedAt']) && (root.child('v2').child('groups').child($groupId).child('meta').child('mode').val() !== 'teams' || newData.hasChild('team')))",
               "name":     { ".validate": "newData.isString() && newData.val().length <= 24" },
               "avatar":   { ".validate": "newData.isString() && newData.val().length <= 8" },
               "joinedAt": { ".validate": "newData.isNumber()" },
+              "points":   { ".validate": "newData.isNumber() && newData.val() >= 0" },
+              "team":     { ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val()) && root.child('v2').child('groups').child($groupId).child('teams').child(newData.val()).exists()" },
               "$other":   { ".validate": false }
+            }
+          },
+          "teams": {
+            "$teamId": {
+              ".write": "auth != null && (data.exists() ? (data.child('ownerUid').val() === auth.uid || (!newData.exists() && root.child('v2').child('groups').child($groupId).child('meta').child('ownerUid').val() === auth.uid)) : (newData.parent().parent().child('meta').child('mode').val() === 'teams' && newData.parent().parent().child('meta').child('open').val() === true))",
+              ".validate": "newData.hasChildren(['name','ownerUid','ownerName','createdAt'])",
+              "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
+              "ownerUid":  { ".validate": "newData.val() === auth.uid" },
+              "ownerName": { ".validate": "newData.isString() && newData.val().length <= 24" },
+              "createdAt": { ".validate": "newData.isNumber()" },
+              "$other":    { ".validate": false }
             }
           },
           "$other": { ".validate": false }
