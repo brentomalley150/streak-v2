@@ -13,18 +13,19 @@ making it a year-round, multi-persona streak platform.
 
 | What | Repo | Live at |
 |---|---|---|
-| **Founders hub** — vision, PRD, prototype, decks | `streak-app` | https://beattheslide.com |
-| **v2 app** (this repo) | `streak-v2` | — |
-| **v1 app** — the live, proven original | `declansummerlearning` (private) | https://beatthesummerslide.com |
+| **v2 app** (this repo) | `streak-v2` | https://beattheslide.com/app/ (a built copy, published from `streak-app`) |
+| **Public site** — landing page + build story | `streak-app` | https://beattheslide.com |
+| **Founders hub** — vision, PRD, proof, decks | `beat-the-slide-hub` (private) | https://beat-the-slide-hub.pages.dev (founders sign in with their email) |
+| **v1 app** — the original SummerStreak | `declansummerlearning` (private) | https://beatthesummerslide.com |
 
 ## Start here
 
-Before writing code, read the product docs in the hub:
+Before writing code, read the product docs in the founders hub (sign-in required):
 
-- **Vision Hub** — https://beattheslide.com
-- **PRD v2.0** — https://beattheslide.com/PRD.html
-- **What we've proven** — https://beattheslide.com/proof.html
-- **Interactive prototype** (9 screens, 3 personas) — https://beattheslide.com/prototype.html
+- **Vision hub** — https://beat-the-slide-hub.pages.dev
+- **PRD v2.0** — https://beat-the-slide-hub.pages.dev/PRD.html
+- **What we've proven** — https://beat-the-slide-hub.pages.dev/proof.html
+- **The live app** — https://beattheslide.com/app/
 
 ## Inherited from v1
 
@@ -32,8 +33,15 @@ v1 is a static HTML app backed by Firebase Realtime Database (Google Sign-In,
 per-parent stable UID, composite leaderboard keys). See `BACKEND-SETUP.md` in the
 `declansummerlearning` repo for how that backend is wired.
 
-**v2 should use its own Firebase project** — do not point it at the live v1
-`summerstreak` database, which holds real user data.
+**v2 shares v1's `summerstreak` Firebase project** (Kate's call, Aug 2026). v1
+owns `/leaderboard`, `/weeklyHistory`, `/weeklyWinners` and `/admins`; everything
+v2 writes lives under `/v2`. That database holds real families' v1 data, so:
+
+- Security rules are **one document for the whole database**. Publish all of
+  `firebase.rules.json` (the merged v1 + v2 rules), never just the v2 part.
+  `rules.test.ts` checks the v1 blocks stay byte-for-byte intact.
+- See [`docs/FIREBASE-SETUP.md`](docs/FIREBASE-SETUP.md) before changing rules,
+  and check beatthesummerslide.com still works after publishing.
 
 ## Running it
 
