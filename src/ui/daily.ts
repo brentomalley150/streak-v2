@@ -8,7 +8,7 @@ import { asDateKey } from '../core/types.js';
 import { getTrack, TRACKS } from '../tracks/index.js';
 import { THEMES, ladderFor, themeInfo } from '../tracks/ladders.js';
 import {
-  computeStats, todayKey, addDays, earliestLoggable, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, pointsForEntry, perfectDayBonus, canEnrollNow, freeTrackLimit,
+  computeStats, allTracksPoints, trackPoints, todayKey, addDays, earliestLoggable, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, pointsForEntry, perfectDayBonus, canEnrollNow, freeTrackLimit,
   effectiveDef, variantFor, ideasFor, routinePlan, activityScores, prizeStatus, pendingConfirmations,
   challengeWindow, pointsInWindow,
 } from '../core/engine.js';
@@ -183,7 +183,7 @@ export function renderDaily(
       const active = id === String(s.activeTrackId);
       const b = el('button', { type: 'button', 'aria-current': String(active) }, [
         el('span', {}, [d.icon]), el('span', {}, [d.name]),
-        el('span', { class: 'meta' }, [`${computeStats(d, st, ladderFor(d, st)).currentStreak}d streak`]),
+        el('span', { class: 'meta' }, [`${trackPoints(d, st)} pts · ${computeStats(d, st, ladderFor(d, st)).currentStreak}d streak`]),
       ]);
       on(b, 'click', () => {
         store.setActiveTrack(id); menuOpen = false; dayOffset = 0;
@@ -199,6 +199,7 @@ export function renderDaily(
   }
 
   // hero: streak + rank progress
+  const trackCount = Object.keys(s.tracks).length;
   const pct = stats.nextRank
     ? Math.round(((stats.points - stats.rank.min) / (stats.nextRank.min - stats.rank.min)) * 100)
     : 100;
@@ -216,6 +217,11 @@ export function renderDaily(
       el('span', { class: 'muted' }, [stats.nextRank ? `${stats.pointsToNext} to ${stats.nextRank.name}` : 'Max rank']),
     ]),
     el('div', { class: 'bar' }, [el('i', { style: `width:${Math.max(0, Math.min(100, pct))}%` })]),
+    // Every track together, for the kid only. Ranks, prizes and leaderboards
+    // stay per track, so this is never compared with anyone.
+    ...(trackCount > 1 ? [el('div', { class: 'all-tracks' }, [
+      `⭐ ${allTracksPoints(s.tracks, getTrack).toLocaleString('en-US')} points across ${trackCount} tracks`,
+    ])] : []),
   ]));
 
   // Theme (FR23). The kid's own choice, changeable any time; points and rank

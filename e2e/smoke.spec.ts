@@ -134,6 +134,20 @@ test.describe('nothing asks for money while we are still building', () => {
     const tracks = await page.evaluate(() => Object.keys((window as any).bts.store.state.tracks));
     expect(tracks.length).toBe(2);
   });
+
+  test('one track shows no all-tracks total; two tracks show the sum', async ({ page }) => {
+    await expect(page.getByText(/points across/)).toHaveCount(0);
+    await page.evaluate(() => {
+      const s = (window as any).bts.store;
+      s.state.tracks['math-facts'].pointAdjustments = 100;
+      s.enroll('reading-slide', 'chess');
+      s.state.tracks['reading-slide'].pointAdjustments = 456;
+      s.emit();
+    });
+    await page.reload();
+    await page.waitForFunction(() => (window as any).bts?.store);
+    await expect(page.getByText('⭐ 556 points across 2 tracks')).toBeVisible();
+  });
 });
 
 const READER = `
