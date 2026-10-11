@@ -200,8 +200,8 @@ describe('the engine stays track-agnostic', () => {
     ]);
     const i = new RuleDiagnostician().diagnose(retrieveWeek(MUSIC_PRACTICE, s, SUN), MUSIC_PRACTICE);
     expect(i.id).toBe('strong-week');
-    // Music's own max is 7 points/day (3+1+3), not Reading's 9 — so 7 x 7 = 49.
-    expect(i.detail).toContain('49');
+    // Music's own max is 9 points/day (3+1+3, +2 for a perfect day), so 9 x 7 = 63.
+    expect(i.detail).toContain('63');
     const lopsided = new RuleDiagnostician().diagnose(
       retrieveWeek(MUSIC_PRACTICE, stateWith(MUSIC_PRACTICE, [
         ['2026-08-24', ['practice']], ['2026-08-25', ['practice']],

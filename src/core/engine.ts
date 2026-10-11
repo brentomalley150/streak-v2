@@ -125,18 +125,38 @@ export function activityScores(a: Activity, entry: DayEntry): boolean {
   return !a.needsParentConfirm || entry.confirmed?.[a.id] === true;
 }
 
+/* ---- Perfect day ------------------------------------------------------- */
+
+/** Extra points for doing every activity in a day (v1's "Perfect Day Bonus"). */
+export const PERFECT_DAY_BONUS = 2;
+
+export function perfectDayBonus(def: TrackDefinition): number {
+  return def.perfectDayBonus ?? PERFECT_DAY_BONUS;
+}
+
 /**
- * Points for one day = sum of completed activities' point values.
- * Retired activities still score, so history never loses points; activities
- * that need a parent's confirmation score only once confirmed.
+ * Every live activity scored — a chore counts once a parent confirms it.
+ * Retired activities are ignored: a kid can't do them any more.
+ */
+export function isPerfectDay(def: TrackDefinition, entry: DayEntry): boolean {
+  return def.activities.length > 0 && def.activities.every((a) => activityScores(a, entry));
+}
+
+/**
+ * Points for one day = sum of completed activities' point values, plus the
+ * perfect-day bonus if the day earned it. Retired activities still score, so
+ * history never loses points; activities that need a parent's confirmation
+ * score only once confirmed.
  */
 export function pointsForEntry(def: TrackDefinition, entry: DayEntry): number {
   const all = [...def.activities, ...(def.retiredActivities ?? [])];
-  return all.reduce((sum, a) => (activityScores(a, entry) ? sum + a.points : sum), 0);
+  const earned = all.reduce((sum, a) => (activityScores(a, entry) ? sum + a.points : sum), 0);
+  return earned + (entry.comboClaimed ? perfectDayBonus(def) : 0);
 }
 
+/** The most a kid can earn in one day, perfect-day bonus included. */
 export function maxPointsPerDay(def: TrackDefinition): number {
-  return def.activities.reduce((sum, a) => sum + a.points, 0);
+  return def.activities.reduce((sum, a) => sum + a.points, 0) + perfectDayBonus(def);
 }
 
 /** An entry counts as activity only if at least one activity is completed. */
@@ -256,7 +276,7 @@ export function toggleActivity(
   const confirmed = { ...(entry.confirmed ?? {}) };
   if (!completed[activityId]) delete confirmed[activityId];
   const updated: DayEntry = { ...entry, completed, confirmed };
-  return { ...updated, points: pointsForEntry(def, updated) };
+  return scored(def, updated);
 }
 
 /** A parent confirms a chore the kid ticked (FR30). Returns a new entry. */
@@ -266,7 +286,13 @@ export function confirmActivity(
   if (!entry.completed[activityId]) return entry;
   const confirmed = { ...(entry.confirmed ?? {}), [activityId]: true };
   const updated: DayEntry = { ...entry, confirmed };
-  return { ...updated, points: pointsForEntry(def, updated) };
+  return scored(def, updated);
+}
+
+/** Settle the perfect-day flag against today's list, then the points. */
+function scored(def: TrackDefinition, entry: DayEntry): DayEntry {
+  const withCombo = { ...entry, comboClaimed: isPerfectDay(def, entry) };
+  return { ...withCombo, points: pointsForEntry(def, withCombo) };
 }
 
 /** Ticked chores still waiting for a parent, oldest first. */
