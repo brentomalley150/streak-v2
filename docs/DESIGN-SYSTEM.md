@@ -149,7 +149,8 @@ Replaces the ten ad-hoc sizes found in the prototype. Named steps only.
 
 | Token | Size / line-height | Weight | Use |
 |---|---|---|---|
-| `--t-display` | 40 / 1.1 | 800 | Landing hero |
+| `--t-hero` | 64 / 1.05 | 900 | Marketing headline: the landing hero, once. Fluid: `clamp(var(--t-display), 7vw, var(--t-hero))` |
+| `--t-display` | 40 / 1.1 | 800 | Largest in-app heading; marketing section titles at their largest |
 | `--t-h1` | 30 / 1.2 | 800 | Page title |
 | `--t-h2` | 22 / 1.3 | 700 | Section heading |
 | `--t-h3` | 18 / 1.4 | 700 | Card title |
@@ -160,6 +161,7 @@ Replaces the ten ad-hoc sizes found in the prototype. Named steps only.
 
 ```css
 :root {
+  --t-hero: 64px;
   --t-display: 40px; --t-h1: 30px; --t-h2: 22px; --t-h3: 18px;
   --t-body: 16px; --t-body-sm: 14px; --t-caption: 13px; --t-micro: 11px;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
