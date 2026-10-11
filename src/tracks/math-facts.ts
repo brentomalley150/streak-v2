@@ -132,6 +132,27 @@ export const MATH_FACTS: TrackDefinition = {
         'You clap 3 times on each of 11 moves. How many claps?',
         'A class meets twice a week for 12 weeks. How many classes?',
       ],
+      art: [
+        'A box has 8 crayons. How many crayons in 6 boxes?',
+        'You draw 4 pictures a day for 7 days. How many pictures?',
+        'A sticker sheet has 3 rows of 9. How many stickers?',
+        'Each painting uses 5 colors. How many colors for 6 paintings?',
+        'A gallery wall has 4 rows of 6 frames. How many frames?',
+      ],
+      space: [
+        'A rocket has 3 stages. How many stages on 8 rockets?',
+        'An astronaut does 9 experiments a day for 6 days. How many experiments?',
+        'A space station has 7 arms with 4 solar panels each. How many panels?',
+        'Mars has 2 moons. How many moons would 12 planets like Mars have?',
+        'A star chart has 8 rows of 8 stars. How many stars?',
+      ],
+      fantasy: [
+        'A dragon guards 9 chests with 7 gold coins each. How many coins?',
+        'A wizard brews 6 potions a day for 4 days. How many potions?',
+        'A castle has 4 towers with 8 windows each. How many windows?',
+        'Each knight carries 3 swords. How many swords for 9 knights?',
+        'A spell takes 5 magic words. How many words for 11 spells?',
+      ],
     },
   },
   weeklyChallenges: [

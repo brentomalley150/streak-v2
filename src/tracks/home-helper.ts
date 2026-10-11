@@ -108,6 +108,24 @@ export const HOME_HELPER: TrackDefinition = {
         'Moonwalk each toy back to its bin.',
         'Dance-clean to one fast song, then one slow song.',
       ],
+      art: [
+        'Tidy your art supplies so every marker has its cap.',
+        'Sort your crayons and markers by color.',
+        'Tidy one shelf until it looks as neat as a picture.',
+        "Clear your drawing space so it's ready for tomorrow.",
+      ],
+      space: [
+        'Mission control: tidy one corner at a time and report back.',
+        'Pretend you are tidying a space station where things float away.',
+        'Count down from 60 and see how much you can put away.',
+        'Put everything back in its orbit — the place it always goes.',
+      ],
+      fantasy: [
+        'The dragon is coming! Hide every toy in its chest before it lands.',
+        'Tidy your room like a castle getting ready for a royal visit.',
+        'Cast a tidy spell: put away 10 things before it wears off.',
+        'Sort your things into treasure and tools, then put each away.',
+      ],
     },
     help: {
       '*': [

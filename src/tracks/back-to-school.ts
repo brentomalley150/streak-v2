@@ -106,6 +106,24 @@ export const BACK_TO_SCHOOL: TrackDefinition = {
         'Stand up and stretch every 5 minutes.',
         'Spell a word out loud with a move for each letter.',
       ],
+      art: [
+        'Make flash cards with a little drawing on each one.',
+        'Draw a picture for each spelling word.',
+        'Circle the tricky parts of words with colored pencils.',
+        'Draw a quick sketch as a reward after every 5 minutes.',
+      ],
+      space: [
+        'Count down from 10 before you start, like a launch.',
+        'Each subject is a planet — visit two before you finish.',
+        'Practice in 5-minute missions with a short break between.',
+        'Draw a star next to each task you finish.',
+      ],
+      fantasy: [
+        'Each task is a quest — finish three to save the kingdom.',
+        'Turn spelling words into magic spells and say them out loud.',
+        'Train like a knight: warm up, practice, then a final test.',
+        'Earn a gem for every right answer and count your treasure.',
+      ],
     },
     bag: {
       '*': [

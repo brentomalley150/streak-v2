@@ -108,6 +108,24 @@ export const MUSIC_PRACTICE: TrackDefinition = {
         'Listen to a song and make up a move for the chorus.',
         'Listen to dance music from a different country.',
       ],
+      art: [
+        'Listen to a song and draw what it makes you imagine.',
+        'Listen to calm music while you draw or color.',
+        'Listen to Pictures at an Exhibition — music about paintings.',
+        'Pick a color for each song you hear today.',
+      ],
+      space: [
+        "Listen to Holst's The Planets and pick your favorite planet.",
+        'Listen to music from a space movie and imagine liftoff.',
+        'Find a song with "star" or "moon" in its name.',
+        'Listen to quiet music and imagine floating in space.',
+      ],
+      fantasy: [
+        'Listen to music from a fantasy movie and imagine the quest.',
+        'Listen to In the Hall of the Mountain King — does it sound like trolls?',
+        'Listen to music played on a harp or a flute, like a bard.',
+        'Listen to a song and decide: is it a hero, a villain, or a dragon?',
+      ],
     },
     learn: {
       '*': [

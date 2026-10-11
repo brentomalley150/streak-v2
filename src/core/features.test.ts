@@ -136,6 +136,15 @@ describe('kid-chosen themes (FR23)', () => {
     }
   });
 
+  it('wherever one theme has its own ideas, every theme does', () => {
+    for (const t of TRACKS) {
+      for (const [act, pool] of Object.entries(t.ideas ?? {})) {
+        if (!THEMES.some((th) => pool[th.id])) continue;
+        for (const th of THEMES) expect(pool[th.id]?.length, `${t.trackId} ${act} ${th.id}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it('every track offers every theme', () => {
     for (const t of TRACKS) expect([...t.themes].sort()).toEqual(THEMES.map((x) => x.id).sort());
   });
