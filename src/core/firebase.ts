@@ -9,6 +9,7 @@ import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Database } from 'firebase/database';
 import type { AuthUser, Backend, FamilyRollup, LeaderboardRow, V1Kid } from './sync.js';
+import type { ProfileBackup } from './backup.js';
 import type { Group, GroupMember, Team } from './groups.js';
 import { NullBackend, v1KidsFromLeaderboard } from './sync.js';
 
@@ -237,8 +238,24 @@ class FirebaseBackend implements Backend {
       }
     }
     paths[`v2/families/${this.user.uid}/rollup/${kid.profileId}`] = null;
+    paths[`v2/families/${this.user.uid}/profiles/${kid.profileId}`] = null;
     for (const g of kid.groupIds) paths[`v2/groups/${g}/members/${kid.key}`] = null;
     await this.sdk.update(this.sdk.ref(this.db), paths);
+  }
+
+  async saveProfileBackup(profileId: string, backup: ProfileBackup): Promise<void> {
+    if (!this.user) return;
+    await this.sdk.set(this.sdk.ref(this.db, `v2/families/${this.user.uid}/profiles/${profileId}`), backup);
+  }
+
+  async loadProfileBackups(): Promise<Record<string, unknown>> {
+    if (!this.user) return {};
+    try {
+      const snap = await this.sdk.get(this.sdk.ref(this.db, `v2/families/${this.user.uid}/profiles`));
+      return (snap.val() ?? {}) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
   }
 
   async deleteFamilyRecord(): Promise<void> {

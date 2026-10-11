@@ -182,6 +182,8 @@ describe('sync claim on the handoff screen', () => {
       async loadV1Kids() { return []; },
       async deleteKidData() {},
       async deleteFamilyRecord() {},
+      async saveProfileBackup() {},
+      async loadProfileBackups() { return {}; },
       async createGroup() {},
       async loadGroup() { return null; },
       async joinGroup() {},
