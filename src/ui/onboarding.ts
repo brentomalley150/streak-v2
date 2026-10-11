@@ -141,7 +141,9 @@ export function renderOnboarding(
       el('div', { class: 'eyebrow' }, ['Welcome back']),
       el('h2', {}, ['Your summer is still here']),
       el('p', {}, [`We found ${kids.length === 1 ? 'your kid' : `${kids.length} kids`} from SummerStreak on this Google account. Their points and rank come with them; streaks start fresh this fall.`]),
-      list, consent, go, fresh,
+      list, consent,
+      el('p', { class: 'muted' }, ["Other families on the same track can see your kid's first name, avatar and progress, like points and minutes read. Never a last name, photo, or location."]),
+      go, fresh,
     ]);
   }
 
