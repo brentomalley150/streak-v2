@@ -13,6 +13,7 @@ import { renderPinGate, renderPinSetup } from './ui/pin.js';
 import { renderMyGroups, renderJoinGroup } from './ui/groups.js';
 import { readJoinCodeFromUrl, readTeamFromUrl } from './core/groups.js';
 import { renderPrizes, renderScores, renderSettings } from './ui/parent.js';
+import { renderSummerRecap } from './ui/recap.js';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('#app not found');
@@ -30,7 +31,7 @@ void createBackend().then((b) => {
 const { migrated } = store.init();
 
 type View = 'onboarding' | 'daily' | 'marketplace' | 'digest' | 'addKid' | 'rollup'
-  | 'setPin' | 'groups' | 'join' | 'prizes' | 'scores' | 'settings';
+  | 'setPin' | 'groups' | 'join' | 'prizes' | 'scores' | 'settings' | 'recap';
 
 /**
  * Screens a kid should not wander into. The daily screen is deliberately absent
@@ -89,12 +90,14 @@ function draw(view: View): void {
     renderPrizes(root!, store, () => show('daily'));
   } else if (view === 'scores') {
     renderScores(root!, store, () => show('daily'));
+  } else if (view === 'recap') {
+    renderSummerRecap(root!, store, () => show('daily'));
   } else if (view === 'settings') {
     renderSettings(root!, store, () => show('daily'), () => show('onboarding'));
   } else {
     renderDaily(root!, store, () => show('marketplace'), () => show('digest'),
       () => show('addKid'), () => show('rollup'), () => show('setPin'),
-      () => show('groups'), () => show('prizes'), () => show('scores'), () => show('settings'));
+      () => show('groups'), () => show('prizes'), () => show('scores'), () => show('settings'), () => show('recap'));
   }
 }
 

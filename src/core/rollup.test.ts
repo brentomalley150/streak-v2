@@ -46,6 +46,7 @@ class RecordingBackend implements Backend {
   async deleteFamilyRecord() {}
   async saveProfileBackup() {}
   async loadProfileBackups() { return {}; }
+  async saveActivitySummary() {}
   async createGroup() {}
   async loadGroup() { return null; }
   async joinGroup() {}
@@ -62,7 +63,7 @@ class RecordingBackend implements Backend {
  * after the reset and get counted against the call under test.
  */
 async function drainPendingSyncs(): Promise<void> {
-  for (let i = 0; i < 5; i++) await Promise.resolve();
+  await store.whenSynced();
 }
 
 let ls: MemStorage;

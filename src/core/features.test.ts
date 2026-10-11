@@ -20,6 +20,7 @@ import {
 import { migrateV1State } from './storage.js';
 import { Store } from './store.js';
 import { fromBackup } from './backup.js';
+import { activitySummaryPaths } from './measure.js';
 import { asActivityId, asDateKey, type DayEntry, type TrackDefinition, type TrackState } from './types.js';
 import type { AuthUser, Backend, LeaderboardRow, V1Kid } from './sync.js';
 import { v1KidsFromLeaderboard } from './sync.js';
@@ -591,6 +592,8 @@ class FakeBackend implements Backend {
   backups: Record<string, unknown> = {};
   async saveProfileBackup(profileId: string, backup: unknown) { this.backups[profileId] = JSON.parse(JSON.stringify(backup)); }
   async loadProfileBackups() { return this.backups; }
+  summaries: Record<string, Record<string, unknown>> = {};
+  async saveActivitySummary(profileId: string, paths: Record<string, unknown>) { this.summaries[profileId] = { ...(this.summaries[profileId] ?? {}), ...paths }; }
   async createGroup() {}
   async loadGroup() { return null; }
   async joinGroup(groupId: string, key: string, member: GroupMember) { this.joined.push({ groupId, key, member }); }
@@ -802,6 +805,38 @@ describe('restore on a new device', () => {
   });
 });
 
+describe('measurement summary (plan items 1 and 2)', () => {
+  it('records activities, perfect days, filled-in-later days, instrument and enrollment', () => {
+    at('2026-10-01');
+    const store = new Store(new MemStorage());
+    store.init(); store.addProfile('Declan'); store.enroll('music-practice', 'chess', 'drums');
+    at('2026-10-11');
+    store.toggle('practice'); store.toggle('listen'); store.toggle('learn'); // perfect today
+    store.toggle('practice', d('2026-10-09'));                               // filled in later
+    const paths = activitySummaryPaths(store.state!, d('2026-10-11'));
+    expect(paths['tracks/music-practice/enrolledAt']).toBe('2026-10-01');
+    expect(paths['tracks/music-practice/variant']).toBe('drums');
+    expect(paths['tracks/music-practice/days/2026-10-11']).toEqual({ acts: { practice: true, listen: true, learn: true }, perfect: true, late: false });
+    expect(paths['tracks/music-practice/days/2026-10-09']).toEqual({ acts: { practice: true }, perfect: false, late: true });
+    expect(paths['tracks/music-practice/days/2026-10-10']).toBeNull();
+    expect(JSON.stringify(paths)).not.toContain('Declan');
+  });
+
+  it('is written on sync, and deleted with the kid', async () => {
+    const store = new Store(new MemStorage());
+    const b = new FakeBackend();
+    store.attachBackend(b);
+    store.init();
+    const p = store.addProfile('Declan');
+    store.enroll('reading-slide', 'chess');
+    store.toggle('read');
+    await store.whenSynced();
+    expect(Object.keys(b.summaries[p.id] ?? {})).toContain('tracks/reading-slide/enrolledAt');
+    await store.deleteProfile(p.id);
+    expect(b.deleted.map((x) => x.profileId)).toEqual([p.id]);
+  });
+});
+
 describe('joining a challenge records it and publishes window points', () => {
   function setup() {
     const store = new Store(new MemStorage());
@@ -827,7 +862,7 @@ describe('joining a challenge records it and publishes window points', () => {
     store.toggle('read');
     expect(await store.joinGroup(g)).toBe(true);
     expect(store.state!.joinedChallenges).toHaveLength(1);
-    for (let i = 0; i < 10; i++) await Promise.resolve(); // let background syncs settle
+    await store.whenSynced(); // let background syncs settle
     b.scores = [];
     await store.publishAll();
     expect(b.scores).toEqual([{ groupId: 'ABCDEFGH', key: `u_kate_${store.state!.profileId}`, points: 3 }]);

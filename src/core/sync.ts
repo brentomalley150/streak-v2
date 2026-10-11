@@ -87,6 +87,8 @@ export interface Backend {
   saveProfileBackup(profileId: string, backup: ProfileBackup): Promise<void>;
   /** Every kid this account has backed up, raw, by profile id. `{}` signed out. */
   loadProfileBackups(): Promise<Record<string, unknown>>;
+  /** Write one kid's measurement summary (paths relative to their record). */
+  saveActivitySummary(profileId: string, paths: Record<string, unknown>): Promise<void>;
 
   /** Groups (FR13–FR18). All no-ops offline; the app stays usable without them. */
   createGroup(group: Group): Promise<void>;
@@ -237,6 +239,7 @@ export class NullBackend implements Backend {
   async deleteFamilyRecord(): Promise<void> { /* nothing in the cloud */ }
   async saveProfileBackup(): Promise<void> { /* offline: the device is the copy */ }
   async loadProfileBackups(): Promise<Record<string, unknown>> { return {}; }
+  async saveActivitySummary(): Promise<void> { /* offline: nothing to measure remotely */ }
   async createGroup(): Promise<void> { /* offline: nothing to share with */ }
   async loadGroup(): Promise<Group | null> { return null; }
   async joinGroup(): Promise<void> { /* offline */ }

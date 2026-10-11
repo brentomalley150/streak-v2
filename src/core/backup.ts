@@ -45,6 +45,7 @@ function restoreEntry(raw: unknown, trackId: string, date: string): DayEntry {
     points: typeof e['points'] === 'number' ? e['points'] : 0,
     comboClaimed: e['comboClaimed'] === true,
     ...(e['confirmed'] ? { confirmed: obj<boolean>(e['confirmed']) } : {}),
+    ...(e['filledLater'] === true ? { filledLater: true } : {}),
   };
 }
 

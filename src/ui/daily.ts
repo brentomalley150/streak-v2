@@ -44,14 +44,14 @@ export function renderDaily(
   root: HTMLElement, store: Store,
   onMarketplace: () => void, onDigest?: () => void, onAddKid?: () => void,
   onRollup?: () => void, onSetPin?: () => void, onGroups?: () => void,
-  onPrizes?: () => void, onScores?: () => void, onSettings?: () => void,
+  onPrizes?: () => void, onScores?: () => void, onSettings?: () => void, onRecap?: () => void,
 ): void {
   const s = store.state;
   const t: TrackState | null = store.activeTrack;
   if (!s || !t) { onMarketplace(); return; }
 
   const rerender = (): void => renderDaily(
-    root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups, onPrizes, onScores, onSettings,
+    root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups, onPrizes, onScores, onSettings, onRecap,
   );
 
   const def = effectiveDef(getTrack(t.trackId), t);
@@ -90,6 +90,11 @@ export function renderDaily(
       const add = el('button', { class: 'btn btn--small', type: 'button' }, ['Add a fall track']);
       on(add, 'click', () => { store.dismissSummerRecap(); onMarketplace(); });
       actions.push(add);
+    }
+    if (onRecap) {
+      const see = el('button', { class: 'btn btn--link btn--small', type: 'button' }, ['See the whole summer']);
+      on(see, 'click', onRecap);
+      actions.push(see);
     }
     actions.push(ok);
     screen.append(el('div', { class: 'mod', role: 'status' }, [
@@ -560,6 +565,14 @@ export function renderDaily(
       ['＋ Add another kid (for parents)']);
     on(addKid, 'click', onAddKid);
     screen.append(addKid);
+  }
+
+  // The summer recap stays reachable after the welcome card is closed.
+  if (onRecap && s.summer) {
+    const rc = el('button', { class: 'btn btn--ghost', type: 'button', style: 'margin-bottom:var(--s-2)' },
+      [`☀️ ${s.playerName || 'Your kid'}'s summer recap`]);
+    on(rc, 'click', onRecap);
+    screen.append(rc);
   }
 
   if (onSettings) {

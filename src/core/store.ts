@@ -19,6 +19,7 @@ import type { Group } from './groups.js';
 import { generateJoinCode, generateTeamId, groupWindow, newGroup } from './groups.js';
 import { leaderboardKey } from './sync.js';
 import { fromBackup, toBackup, type ProfileBackup } from './backup.js';
+import { activitySummaryPaths } from './measure.js';
 import { ladderFor } from '../tracks/ladders.js';
 
 type Listener = () => void;
@@ -99,14 +100,23 @@ export class Store {
    * network means a stale leaderboard, never lost progress.
    */
   publishAll(): Promise<void> {
-    const run = this.publishNow();
-    this.inflight.add(run);
-    void run.finally(() => this.inflight.delete(run));
-    return run;
+    // Decide now: a change made while signed out publishes nothing.
+    const b = this.backend;
+    if (!b?.enabled || !b.user) return this.chain;
+    // One sync at a time, so an older one can never land after a newer one
+    // and overwrite the backup with stale data. Requests that arrive while
+    // one is still waiting share it: it reads the latest state when it runs.
+    if (this.queued) return this.chain;
+    this.queued = true;
+    this.chain = this.chain.then(() => { this.queued = false; return this.publishNow(); });
+    return this.chain;
   }
 
-  /** Publishes still running, so a delete can wait for them to land first. */
-  private inflight = new Set<Promise<void>>();
+  /** Resolves once every requested sync has finished. */
+  whenSynced(): Promise<void> { return this.chain; }
+
+  private chain: Promise<void> = Promise.resolve();
+  private queued = false;
   /** Kids being deleted: never re-published while their cloud data goes. */
   private deleting = new Set<string>();
 
@@ -136,6 +146,8 @@ export class Store {
         await b.saveRollup(s.profileId, rows);
         // The restorable copy: everything but test scores and the PIN.
         await b.saveProfileBackup(s.profileId, toBackup(s));
+        // The measurement summary: recent days and each track's enrollment.
+        await b.saveActivitySummary(s.profileId, activitySummaryPaths(s, todayKey()));
         // Each challenge this kid joined gets their points inside its window
         // (FR29). Written under their own key, so the rules let only this
         // family write it.
@@ -264,7 +276,7 @@ export class Store {
     if (inCloud) {
       this.deleting.add(id);
       try {
-        await Promise.all([...this.inflight]);
+        await this.whenSynced();
         await b!.deleteKidData({
           key: leaderboardKey(b!.user!.uid, id),
           profileId: id,
@@ -608,7 +620,10 @@ export class Store {
     if (!s || !t || !canLogDate(t, asDateKey(date))) return;
     const def = effectiveDef(getTrack(t.trackId), t);
     const entry = getEntry(t, def, date);
-    t.entries[date] = toggleActivity(def, entry, activityId);
+    const next = toggleActivity(def, entry, activityId);
+    // Measurement: a tick on a later day marks the day as filled in later.
+    if (date !== todayKey() && next.completed[activityId]) next.filledLater = true;
+    t.entries[date] = next;
     this.emit();
   }
 
