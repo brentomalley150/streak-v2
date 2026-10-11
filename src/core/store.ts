@@ -6,7 +6,7 @@ import type { Activity, Profile, ProfileState, TrackId, TrackState } from './typ
 import { asDateKey, asTrackId } from './types.js';
 import { getTrack } from '../tracks/index.js';
 import {
-  todayKey, toggleActivity, getEntry, confirmActivity, effectiveDef, pointsInWindow,
+  todayKey, toggleActivity, getEntry, canLogDate, confirmActivity, effectiveDef, pointsInWindow,
 } from './engine.js';
 import {
   loadProfiles, saveProfiles, currentProfileId, setCurrentProfileId, migrate,
@@ -440,11 +440,14 @@ export class Store {
     this.emit();
   }
 
-  /** Toggle an activity on today's entry for the active track. */
+  /**
+   * Toggle an activity for the active track — today by default, or a recent
+   * day the kid forgot to log. Days outside the window are refused.
+   */
   toggle(activityId: string, date = todayKey()): void {
     const s = this.state;
     const t = this.activeTrack;
-    if (!s || !t) return;
+    if (!s || !t || !canLogDate(t, asDateKey(date))) return;
     const def = effectiveDef(getTrack(t.trackId), t);
     const entry = getEntry(t, def, date);
     t.entries[date] = toggleActivity(def, entry, activityId);

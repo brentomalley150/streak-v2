@@ -3,11 +3,11 @@
  * prizes, routines from scores, chores, challenge windows, teams, and the
  * opt-in fall projection. Each block names the requirement it holds to.
  */
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
-  bonusPoints, challengeWindow, computeStats, confirmActivity, currentStreak, effectiveDef,
+  bonusPoints, canLogDate, challengeWindow, computeStats, confirmActivity, currentStreak, earliestLoggable, effectiveDef,
   ideasFor, makeEntry, pendingConfirmations, pointsForEntry, pointsInWindow, prizeStatus,
   routinePlan, toggleActivity,
 } from './engine.js';
@@ -29,6 +29,13 @@ import { HOME_HELPER } from '../tracks/home-helper.js';
 import { LADDERS, RANK_THRESHOLDS, THEMES, ladderFor } from '../tracks/ladders.js';
 
 const d = asDateKey;
+
+/** Freeze the clock at noon on a date, so logging windows are deterministic. */
+const at = (date: string) => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(`${date}T12:00:00`));
+};
+afterEach(() => { vi.useRealTimers(); });
 
 function stateWith(def: TrackDefinition, days: Array<[string, string[]]>, extra: Partial<TrackState> = {}): TrackState {
   const entries: Record<string, DayEntry> = {};
@@ -138,6 +145,54 @@ describe('theme ideas for each activity (FR24)', () => {
   });
 });
 
+describe('logging a day the kid forgot', () => {
+  const enrolled = (startedOn: string, today: string) => {
+    at(startedOn);
+    const store = new Store(new MemStorage());
+    store.init(); store.addProfile('Declan'); store.enroll('reading-slide', 'chess');
+    at(today);
+    return store;
+  };
+
+  it('logs yesterday and keeps the streak alive', () => {
+    const store = enrolled('2026-09-01', '2026-10-11');
+    store.toggle('read', d('2026-10-09'));
+    store.toggle('read', d('2026-10-11'));
+    const t = store.activeTrack!;
+    expect(currentStreak(t, d('2026-10-11'))).toBe(1);
+    store.toggle('read', d('2026-10-10')); // the forgotten day
+    expect(currentStreak(t, d('2026-10-11'))).toBe(3);
+    expect(t.entries['2026-10-10']!.points).toBe(3);
+  });
+
+  it('goes back a week, and no further', () => {
+    const store = enrolled('2026-09-01', '2026-10-11');
+    store.toggle('read', d('2026-10-04'));
+    store.toggle('read', d('2026-10-03'));
+    const t = store.activeTrack!;
+    expect(t.entries['2026-10-04']?.completed['read']).toBe(true);
+    expect(t.entries['2026-10-03']).toBeUndefined();
+  });
+
+  it('never before the kid started, and never the future', () => {
+    const store = enrolled('2026-10-09', '2026-10-11');
+    store.toggle('read', d('2026-10-08'));
+    store.toggle('read', d('2026-10-12'));
+    const t = store.activeTrack!;
+    expect(Object.keys(t.entries)).toEqual([]);
+    expect(earliestLoggable(t, d('2026-10-11'))).toBe('2026-10-09');
+    expect(canLogDate(t, d('2026-10-09'), d('2026-10-11'))).toBe(true);
+  });
+
+  it('counts in the week the day belongs to, not the week it was logged', () => {
+    const store = enrolled('2026-09-01', '2026-10-11');
+    const t = store.activeTrack!;
+    const before = weeklyPoints(READING_SLIDE, t, new Date('2026-10-11T12:00:00'));
+    store.toggle('read', d('2026-10-04')); // a week ago Sunday
+    expect(weeklyPoints(READING_SLIDE, t, new Date('2026-10-11T12:00:00'))).toBe(before);
+  });
+});
+
 describe('weekly bonus activity (FR26)', () => {
   it('adds points and never touches the streak', () => {
     const s = stateWith(READING_SLIDE, [['2026-10-09', ['read']]]);
@@ -173,7 +228,9 @@ describe('family prizes (FR27–FR28)', () => {
     const store = new Store(new MemStorage());
     store.init();
     store.addProfile('Declan');
+    at('2026-10-01');
     store.enroll('reading-slide', 'chess');
+    at('2026-10-03');
     for (let i = 0; i < 3; i++) store.toggle('read', d(`2026-10-0${i + 1}`));
     store.toggle('write', d('2026-10-03'));
     const t = store.activeTrack!;
@@ -430,7 +487,9 @@ describe('joining a challenge records it and publishes window points', () => {
 describe('review fixes', () => {
   it('removing a chore keeps the points it already earned, and its pending ticks', () => {
     const store = new Store(new MemStorage());
+    at('2026-10-01');
     store.init(); store.addProfile('D'); store.enroll('home-helper', 'animals');
+    at('2026-10-02');
     store.toggle('bed', d('2026-10-01'));
     store.confirmChore('2026-10-01', 'bed');
     store.toggle('bed', d('2026-10-02')); // ticked, not yet confirmed

@@ -226,6 +226,23 @@ p  { margin: 0 0 var(--s-3); color: var(--soft); }
 .kidrow:hover:not([disabled]) { color: var(--purple); }
 .kidrow[disabled] { cursor: default; opacity: .62; }
 
+/* ── Logging a past day ── */
+.daynav {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  background: var(--panel); border: 2px solid var(--border); border-radius: var(--r-md);
+  padding: var(--s-1); margin-bottom: var(--s-3);
+}
+.daynav--past { border-color: var(--gold); }
+.daynav-label { display: flex; flex-direction: column; align-items: center; text-align: center;
+  font-size: var(--t-body); }
+.daynav-label .muted { font-size: var(--t-caption); }
+.daynav-btn {
+  font: inherit; font-size: 24px; font-weight: 800; line-height: 1; cursor: pointer;
+  color: var(--ink); background: var(--panel-alt); border: 1px solid var(--border);
+  border-radius: var(--r-md); min-width: 44px; min-height: 44px;
+}
+.daynav-btn:disabled { opacity: .35; cursor: not-allowed; }
+
 /* ── PRD v2 features: themes, ideas, bonus, prizes, chores, challenges ── */
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); }
 .opt--theme { flex-direction: column; align-items: center; text-align: center; gap: var(--s-1); }

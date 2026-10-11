@@ -21,6 +21,25 @@ export function addDays(key: DateKey, n: number): DateKey {
   return todayKey(new Date(y, m - 1, d + n));
 }
 
+/* ---- Logging a past day ------------------------------------------------ */
+
+/**
+ * How many days back a kid may log. A week covers "we forgot on the weekend"
+ * without letting a whole summer be filled in after the fact.
+ */
+export const BACKFILL_DAYS = 7;
+
+/** The earliest day this kid may log: a week back, never before they started. */
+export function earliestLoggable(state: TrackState, today: DateKey = todayKey()): DateKey {
+  const weekBack = addDays(today, -BACKFILL_DAYS);
+  return state.startDate > weekBack ? state.startDate : weekBack;
+}
+
+/** True for today and the loggable days before it — never the future. */
+export function canLogDate(state: TrackState, date: DateKey, today: DateKey = todayKey()): boolean {
+  return date <= today && date >= earliestLoggable(state, today);
+}
+
 /** A blank entry for a date. Activity keys come from the definition. */
 export function makeEntry(def: TrackDefinition, date: DateKey): DayEntry {
   return {

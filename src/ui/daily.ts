@@ -8,7 +8,7 @@ import { asDateKey } from '../core/types.js';
 import { getTrack, TRACKS } from '../tracks/index.js';
 import { THEMES, ladderFor, themeInfo } from '../tracks/ladders.js';
 import {
-  computeStats, todayKey, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, canEnrollNow,
+  computeStats, todayKey, addDays, earliestLoggable, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, canEnrollNow,
   effectiveDef, ideasFor, routinePlan, activityScores, prizeStatus, pendingConfirmations,
   challengeWindow, pointsInWindow,
 } from '../core/engine.js';
@@ -17,6 +17,8 @@ import { leaderboardKey, type LeaderboardRow } from '../core/sync.js';
 import { memberBoard, teamBoard } from '../core/groups.js';
 
 let themeMenuOpen = false;
+/** Days back from today the kid is logging; 0 is today. */
+let dayOffset = 0;
 
 let menuOpen = false;
 let kidMenuOpen = false;
@@ -27,6 +29,14 @@ function toast(msg: string): void {
   const t = el('div', { class: 'toast', role: 'status' }, [msg]);
   document.body.append(t);
   setTimeout(() => t.remove(), 2400);
+}
+
+/** "Today", "Yesterday", or a short date like "Thu, Oct 8". */
+function dayLabel(day: string, today: string): string {
+  if (day === today) return 'Today';
+  if (day === addDays(asDateKey(today), -1)) return 'Yesterday';
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 export function renderDaily(
@@ -47,7 +57,14 @@ export function renderDaily(
   const ladder = ladderFor(def, t);
   const stats = computeStats(def, t, ladder);
   const today = todayKey();
-  const entry = getEntry(t, def, today);
+  // The day being logged. Clamped every render, so a kid switch, a track with
+  // a later start, or midnight passing can never leave it out of the window.
+  const earliest = earliestLoggable(t, today);
+  let day = addDays(today, -dayOffset);
+  if (day < earliest) { day = earliest; }
+  if (day > today) { day = today; }
+  const isToday = day === today;
+  const entry = getEntry(t, def, day);
 
   clear(root);
   document.documentElement.dataset['surface'] = 'kid';
@@ -98,6 +115,7 @@ export function renderDaily(
           store.switchProfile(p.id);
           // Close the track menu too: it was showing the previous kid's tracks.
           menuOpen = false;
+          dayOffset = 0;
           rerender();
           toast(`Switched to ${p.state.playerName || 'this kid'}`);
         });
@@ -138,7 +156,7 @@ export function renderDaily(
         el('span', { class: 'meta' }, [`${computeStats(d, st, ladderFor(d, st)).currentStreak}d streak`]),
       ]);
       on(b, 'click', () => {
-        store.setActiveTrack(id); menuOpen = false;
+        store.setActiveTrack(id); menuOpen = false; dayOffset = 0;
         rerender(); toast(`Switched to ${d.name}`);
       });
       menu.append(b);
@@ -193,6 +211,25 @@ export function renderDaily(
     screen.append(grid);
   }
 
+  // Which day is being logged. A kid who forgot can go back up to a week
+  // (never before they started); the streak, weekly and challenge points all
+  // recompute from the dated entries, so a filled-in day counts where it falls.
+  const offsetOf = (k: string) => Math.round(
+    (Date.parse(`${today}T12:00:00`) - Date.parse(`${k}T12:00:00`)) / 86_400_000);
+  const prev = el('button', { class: 'daynav-btn', type: 'button', 'aria-label': 'Previous day' }, ['‹']);
+  const next = el('button', { class: 'daynav-btn', type: 'button', 'aria-label': 'Next day' }, ['›']);
+  prev.disabled = day <= earliest;
+  next.disabled = isToday;
+  on(prev, 'click', () => { dayOffset = offsetOf(day) + 1; rerender(); });
+  on(next, 'click', () => { dayOffset = offsetOf(day) - 1; rerender(); });
+  const center = el('div', { class: 'daynav-label' }, [el('strong', {}, [dayLabel(day, today)])]);
+  if (!isToday) {
+    const back = el('button', { class: 'btn btn--link btn--small', type: 'button' }, ['Back to today']);
+    on(back, 'click', () => { dayOffset = 0; rerender(); });
+    center.append(el('span', { class: 'muted' }, ['Logging a day you missed']), back);
+  }
+  screen.append(el('div', { class: isToday ? 'daynav' : 'daynav daynav--past' }, [prev, center, next]));
+
   // activities — straight from the (effective) definition
   const plan = routinePlan(def, t.baseline);
   const acts = el('div', { class: 'acts' });
@@ -207,7 +244,11 @@ export function renderDaily(
         ? [el('span', { class: waiting ? 'done done--wait' : 'done' }, [waiting ? '⏳ Grown-up checks' : '✓ Done'])]
         : []),
     ]);
-    on(b, 'click', () => { store.toggle(String(a.id)); rerender(); });
+    on(b, 'click', () => {
+      store.toggle(String(a.id), day);
+      rerender();
+      if (!isToday && !ticked) toast(`Logged for ${dayLabel(day, today)}`);
+    });
     acts.append(b);
   }
   screen.append(acts);
@@ -215,7 +256,7 @@ export function renderDaily(
   const earned = def.activities.reduce((n, a) => (activityScores(a, entry) ? n + a.points : n), 0);
   const waitingCount = def.activities.filter((a) => entry.completed[a.id] && !activityScores(a, entry)).length;
   screen.append(el('p', { class: 'muted', style: 'text-align:center' }, [
-    `Today: ${earned} of ${maxPointsPerDay(def)} points`
+    `${dayLabel(day, today)}: ${earned} of ${maxPointsPerDay(def)} points`
       + (waitingCount ? ` · ${waitingCount} waiting for a grown-up` : ''),
   ]));
 
@@ -237,7 +278,8 @@ export function renderDaily(
     for (const i of ideas) row.append(el('div', { class: 'idea-t' }, [`• ${i}`]));
     ideasBox.append(row);
   }
-  if (anyIdea) screen.append(ideasBox);
+  // Ideas are for doing today, not for filling in a day already gone.
+  if (anyIdea && isToday) screen.append(ideasBox);
 
   // Weekly bonus activity (FR26) — optional extra points, never the streak.
   const wk = weekNumber(def, t.startDate, today);
