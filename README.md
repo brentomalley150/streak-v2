@@ -18,6 +18,17 @@ making it a year-round, multi-persona streak platform.
 | **Founders hub** — vision, PRD, proof, decks | `beat-the-slide-hub` (private) | https://beat-the-slide-hub.pages.dev (founders sign in with their email) |
 | **v1 app** — the original SummerStreak | `declansummerlearning` (private) | https://beatthesummerslide.com |
 
+## Design system
+
+`design-system/` is the Beat the Slide design system: the brand book (`README.md`),
+`tokens.json` (both surfaces), and a guide plus HTML preview per component, styled by
+`components/bundle.css`. It is a snapshot of the published system
+(https://claude.ai/artifact/Xfde5EeMes2p3AsMz6Xx1u) built from `src/styles/`.
+**`src/styles/tokens.css` and `app.css` stay the source of truth** — change a value there,
+then update the design system to match. The previews expect the system's generated
+`tokens.css` and `bundle.css` loaded first, so they render in the published system rather
+than opened directly.
+
 ## Start here
 
 Before writing code, read the product docs in the founders hub (sign-in required):
