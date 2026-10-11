@@ -33,8 +33,15 @@ v1 is a static HTML app backed by Firebase Realtime Database (Google Sign-In,
 per-parent stable UID, composite leaderboard keys). See `BACKEND-SETUP.md` in the
 `declansummerlearning` repo for how that backend is wired.
 
-**v2 should use its own Firebase project** — do not point it at the live v1
-`summerstreak` database, which holds real user data.
+**v2 shares v1's `summerstreak` Firebase project** (Kate's call, Aug 2026). v1
+owns `/leaderboard`, `/weeklyHistory`, `/weeklyWinners` and `/admins`; everything
+v2 writes lives under `/v2`. That database holds real families' v1 data, so:
+
+- Security rules are **one document for the whole database**. Publish all of
+  `firebase.rules.json` (the merged v1 + v2 rules), never just the v2 part.
+  `rules.test.ts` checks the v1 blocks stay byte-for-byte intact.
+- See [`docs/FIREBASE-SETUP.md`](docs/FIREBASE-SETUP.md) before changing rules,
+  and check beatthesummerslide.com still works after publishing.
 
 ## Running it
 
