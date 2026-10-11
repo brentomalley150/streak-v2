@@ -121,7 +121,7 @@ describe('theme ideas for each activity (FR24)', () => {
   it("shows the kid's theme, rotates daily, and is stable within a day", () => {
     const a = ideasFor(READING_SLIDE, 'write', 'animals', d('2026-10-10'));
     expect(a).toHaveLength(2);
-    expect(READING_SLIDE.ideas!['write']!['animals']).toEqual(expect.arrayContaining(a));
+    expect(ideaRotation(READING_SLIDE.ideas!['write']!, 'animals')).toEqual(expect.arrayContaining(a));
     expect(ideasFor(READING_SLIDE, 'write', 'animals', d('2026-10-10'))).toEqual(a);
     expect(ideasFor(READING_SLIDE, 'write', 'animals', d('2026-10-11'))).not.toEqual(a);
   });
