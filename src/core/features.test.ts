@@ -138,6 +138,65 @@ describe('theme ideas for each activity (FR24)', () => {
   });
 });
 
+describe('music: the kid picks an instrument', () => {
+  const day = (acts: string[]) => stateWith(MUSIC_PRACTICE, [['2026-06-02', acts]]);
+
+  it('offers drums, guitar, piano and trombone', () => {
+    const ids = MUSIC_PRACTICE.variants!.options.map((v) => v.id);
+    expect(ids).toEqual(expect.arrayContaining(['drums', 'guitar', 'piano', 'trombone']));
+  });
+
+  it("swaps the words — drums get drum ideas, not piano ones", () => {
+    const drums = effectiveDef(MUSIC_PRACTICE, { ...day([]), variant: 'drums' });
+    expect(drums.activities.find((a) => a.id === 'practice')!.icon).toBe('🥁');
+    const ideas = ideasFor(drums, 'practice', 'chess', d('2026-10-10'), 10);
+    expect(ideas.join(' ')).toMatch(/fill|groove|paradiddle|roll/i);
+    expect(ideas.join(' ')).not.toMatch(/hands together|bar/);
+  });
+
+  it("never moves a point — same score on every instrument", () => {
+    const base = computeStats(MUSIC_PRACTICE, day(['practice', 'learn']), LADDERS['chess']!, d('2026-06-02')).points;
+    for (const v of MUSIC_PRACTICE.variants!.options) {
+      const s = { ...day(['practice', 'learn']), variant: v.id };
+      expect(computeStats(MUSIC_PRACTICE, s, LADDERS['chess']!, d('2026-06-02')).points).toBe(base);
+      expect(effectiveDef(MUSIC_PRACTICE, s).activities.map((a) => [a.id, a.points]))
+        .toEqual(MUSIC_PRACTICE.activities.map((a) => [a.id, a.points]));
+    }
+  });
+
+  it("a theme's own ideas still win over the instrument's", () => {
+    const drums = effectiveDef(MUSIC_PRACTICE, { ...day([]), variant: 'drums' });
+    expect(ideasFor(drums, 'listen', 'gaming', d('2026-10-10'))).toEqual(MUSIC_PRACTICE.ideas!['listen']!['gaming']);
+  });
+
+  it('no pick (or an unknown one) plays the general track', () => {
+    expect(effectiveDef(MUSIC_PRACTICE, day([]))).toBe(MUSIC_PRACTICE);
+    expect(effectiveDef(MUSIC_PRACTICE, { ...day([]), variant: 'kazoo' })).toBe(MUSIC_PRACTICE);
+  });
+
+  it('every variant override points at a real activity and field', () => {
+    for (const t of TRACKS) {
+      for (const v of t.variants?.options ?? []) {
+        for (const [actId, o] of Object.entries(v.activities ?? {})) {
+          const a = t.activities.find((x) => String(x.id) === actId);
+          expect(a, `${v.id}.${actId}`).toBeDefined();
+          for (const f of Object.keys(o.placeholders ?? {})) expect(a!.fields.some((x) => x.id === f)).toBe(true);
+        }
+        for (const actId of Object.keys(v.ideas ?? {})) expect(t.activities.some((x) => String(x.id) === actId)).toBe(true);
+      }
+    }
+  });
+
+  it('the store records the pick at enroll and on change', () => {
+    const store = new Store(new MemStorage());
+    store.addProfile('Declan');
+    store.enroll('music-practice', 'chess', 'drums');
+    expect(store.state!.tracks['music-practice']!.variant).toBe('drums');
+    store.setVariant('music-practice', 'guitar');
+    expect(store.state!.tracks['music-practice']!.variant).toBe('guitar');
+  });
+});
+
 describe('weekly bonus activity (FR26)', () => {
   it('adds points and never touches the streak', () => {
     const s = stateWith(READING_SLIDE, [['2026-10-09', ['read']]]);

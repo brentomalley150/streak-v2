@@ -113,6 +113,34 @@ export interface OutcomeModel {
   readonly routine?: RoutineRules;
 }
 
+/**
+ * One flavour of a track the kid picks for themselves — the instrument on
+ * Music Practice. It never changes scoring: same activities, same points.
+ * It only swaps the words a kid sees (icons, placeholders, ideas), so two
+ * friends on different instruments still share one leaderboard.
+ */
+export interface TrackVariant {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: string;
+  /** Per-activity overrides, keyed by activity id. */
+  readonly activities?: Readonly<Record<string, {
+    readonly icon?: string;
+    /** Field placeholders, keyed by field id. */
+    readonly placeholders?: Readonly<Record<string, string>>;
+  }>>;
+  /** Replaces an activity's '*' ideas; a theme's own list still wins. */
+  readonly ideas?: Readonly<Record<string, readonly string[]>>;
+}
+
+export interface TrackVariants {
+  /** What the picker asks, e.g. "What do you play?" */
+  readonly prompt: string;
+  /** What one option is called, e.g. "instrument". */
+  readonly noun: string;
+  readonly options: readonly TrackVariant[];
+}
+
 export interface TrackDefinition {
   readonly trackId: TrackId;
   readonly version: number;
@@ -141,6 +169,8 @@ export interface TrackDefinition {
   readonly retiredActivities?: readonly Activity[];
   /** A parent may replace the activity list (Home Helper's chore list). */
   readonly customizableActivities?: boolean;
+  /** Kid-picked flavours of the track (Music's instrument). */
+  readonly variants?: TrackVariants;
 }
 
 /** DATA-MODEL §3.3 — the generalized DayEntry. */
@@ -211,6 +241,8 @@ export interface TrackState {
   bonusCompleted?: Record<number, DateKey>;
   /** Opt-in fall projection (FR25). Off unless a parent turns it on. */
   projectionOn?: boolean;
+  /** The kid's pick from the track's variants (e.g. 'drums'). Unset = generic. */
+  variant?: string;
   /** A parent-edited activity list, for tracks that allow it. */
   customActivities?: Activity[];
   /**

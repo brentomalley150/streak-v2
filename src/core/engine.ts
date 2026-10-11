@@ -6,7 +6,8 @@
  * Assumption 1 ("the engine generalizes"), and engine.test.ts asserts it.
  */
 import type {
-  Activity, DateKey, DayEntry, Prize, Rank, TrackDefinition, TrackState, TrackStats,
+  Activity, DateKey, DayEntry, IdeaPool, Prize, Rank, TrackDefinition, TrackState, TrackStats,
+  TrackVariant,
 } from './types.js';
 import { BILLING_ENABLED } from './flags.js';
 import { asDateKey } from './types.js';
@@ -41,10 +42,15 @@ export function getEntry(
 
 /**
  * The definition as this kid actually plays it. A track that allows it can
- * have its activity list replaced by a parent (Home Helper's chores); every
- * other track is returned untouched.
+ * have its activity list replaced by a parent (Home Helper's chores), and a
+ * track with variants takes on the kid's pick (Music's instrument). Any other
+ * track is returned untouched.
  */
 export function effectiveDef(def: TrackDefinition, state: TrackState | null | undefined): TrackDefinition {
+  return withVariant(withCustomActivities(def, state), state?.variant);
+}
+
+function withCustomActivities(def: TrackDefinition, state: TrackState | null | undefined): TrackDefinition {
   if (!def.customizableActivities) return def;
   const custom = state?.customActivities;
   const removed = state?.retiredCustomActivities ?? [];
@@ -60,6 +66,38 @@ export function effectiveDef(def: TrackDefinition, state: TrackState | null | un
       ...removed.filter((a) => !live.has(String(a.id))),
     ],
   };
+}
+
+/** The kid's chosen variant, or null if none is picked (or it no longer exists). */
+export function variantFor(def: TrackDefinition, variantId: string | undefined): TrackVariant | null {
+  if (!variantId) return null;
+  return def.variants?.options.find((v) => v.id === variantId) ?? null;
+}
+
+/**
+ * Words only — ids, points and fields stay put, so switching instrument never
+ * moves a single point.
+ */
+function withVariant(def: TrackDefinition, variantId: string | undefined): TrackDefinition {
+  const v = variantFor(def, variantId);
+  if (!v) return def;
+  const activities = def.activities.map((a) => {
+    const o = v.activities?.[String(a.id)];
+    if (!o) return a;
+    return {
+      ...a,
+      icon: o.icon ?? a.icon,
+      fields: a.fields.map((f) => {
+        const placeholder = o.placeholders?.[f.id];
+        return placeholder ? { ...f, placeholder } : f;
+      }),
+    };
+  });
+  const ideas: Record<string, IdeaPool> = { ...(def.ideas ?? {}) };
+  for (const [actId, list] of Object.entries(v.ideas ?? {})) {
+    ideas[actId] = { ...(ideas[actId] ?? {}), '*': list };
+  }
+  return { ...def, activities, ideas };
 }
 
 /** True when an activity's tap has earned its points. */

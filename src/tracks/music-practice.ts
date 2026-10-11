@@ -23,7 +23,7 @@ export const MUSIC_PRACTICE: TrackDefinition = {
   themes: ALL_THEME_IDS,
   weeklyBonusPoints: 5,
   activities: [
-    { id: asActivityId('practice'), label: 'Practice', icon: '🎹', points: 3, minutes: 15, fields: [
+    { id: asActivityId('practice'), label: 'Practice', icon: '🎵', points: 3, minutes: 15, fields: [
       { id: 'minutes', type: 'number', label: 'Minutes', placeholder: '25' },
       { id: 'piece', type: 'text', label: 'Piece', placeholder: 'What did you play?' },
     ] },
@@ -72,4 +72,84 @@ export const MUSIC_PRACTICE: TrackDefinition = {
     CH(12, '🏆', 'Recital', 'Play your best piece for whoever will listen.'),
   ],
   outcomeModel: null,
+  // Same three activities and points for every instrument, so a drummer and a
+  // pianist still share a leaderboard. Only the words change.
+  variants: {
+    prompt: 'What do you play?',
+    noun: 'instrument',
+    options: [
+      { id: 'drums', label: 'Drums', icon: '🥁',
+        activities: {
+          practice: { icon: '🥁', placeholders: { piece: 'Groove, song, or rudiment' } },
+          learn: { placeholders: { newSkill: 'Rudiment, groove, fill…' } },
+        },
+        ideas: {
+          practice: [
+            'Play single-stroke rolls to a metronome — slow, then a bit faster.',
+            'Play your groove for two minutes without stopping.',
+            'Play your hardest fill four times in a row, clean.',
+            'Warm up with a paradiddle before your song.',
+          ],
+          learn: [
+            'Learn a new rudiment — try a double-stroke roll.',
+            'Learn a new fill to end a four-bar phrase.',
+            'Learn one new drum notation symbol.',
+          ],
+        } },
+      { id: 'guitar', label: 'Guitar', icon: '🎸',
+        activities: {
+          practice: { icon: '🎸' },
+          learn: { placeholders: { newSkill: 'Chord, riff, strum…' } },
+        },
+        ideas: {
+          practice: [
+            'Tune up first, then play your piece.',
+            'Switch between two chords slowly until it sounds smooth.',
+            'Play your riff with a steady down-up strum.',
+          ],
+          learn: [
+            'Learn a new chord shape.',
+            'Learn a new strumming pattern.',
+            'Learn a new riff, four notes at a time.',
+          ],
+        } },
+      { id: 'piano', label: 'Piano', icon: '🎹',
+        activities: {
+          practice: { icon: '🎹' },
+          learn: { placeholders: { newSkill: 'Scale, chord, bar…' } },
+        },
+        ideas: {
+          practice: [
+            'Play hands separately before hands together.',
+            'Warm up with a scale before your piece.',
+            'Start with the hardest bar, not the easiest.',
+          ],
+          learn: [
+            'Learn one new bar today.',
+            'Learn a new scale, one hand at a time.',
+            'Learn the name of a musical sign in your piece.',
+          ],
+        } },
+      // No trombone emoji exists; the trumpet is the closest brass.
+      { id: 'trombone', label: 'Trombone', icon: '🎺',
+        activities: {
+          practice: { icon: '🎺' },
+          learn: { placeholders: { newSkill: 'Slide position, scale, lip slur…' } },
+        },
+        ideas: {
+          practice: [
+            'Start with long tones to warm up your sound.',
+            'Play a lip slur slowly, then a bit faster.',
+            'Move cleanly between two slide positions, ten times.',
+          ],
+          learn: [
+            'Learn a new slide position and the notes it plays.',
+            'Learn a new scale.',
+            'Learn one new bar today.',
+          ],
+        } },
+      // Anything else keeps the track's own general-purpose words.
+      { id: 'other', label: 'Something else', icon: '🎵' },
+    ],
+  },
 };

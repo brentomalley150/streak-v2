@@ -10,13 +10,13 @@ import { THEMES } from '../tracks/ladders.js';
 import { hasProjection } from '../core/projection.js';
 import { el, clear, on } from './dom.js';
 
-type Draft = { name: string; trackId: string | null; theme: string | null;
+type Draft = { name: string; trackId: string | null; variant: string | null; theme: string | null;
                guardian: boolean; data: boolean; projection: boolean };
 
 export function renderOnboarding(
   root: HTMLElement, store: Store, done: () => void, onSetPin?: () => void,
 ): void {
-  const draft: Draft = { name: '', trackId: null, theme: null, guardian: false, data: false, projection: false };
+  const draft: Draft = { name: '', trackId: null, variant: null, theme: null, guardian: false, data: false, projection: false };
   let step = 1;
   const TOTAL = 7;
 
@@ -94,8 +94,10 @@ export function renderOnboarding(
   }
 
   function step3(): void {
+    const picked = TRACKS.find((t) => String(t.trackId) === draft.trackId);
     const btn = el('button', { class: 'btn', type: 'button' }, ['Continue']);
-    btn.disabled = !draft.trackId;
+    // A track with variants (Music's instrument) needs one picked to continue.
+    btn.disabled = !draft.trackId || (!!picked?.variants && !draft.variant);
     const list = el('div', { class: 'stack' });
     for (const t of TRACKS) {
       const b = el('button', {
@@ -108,8 +110,25 @@ export function renderOnboarding(
           el('span', { class: 'd' }, [`${t.description} · Ages ${t.recommendedAge} · ~${t.dailyMinutes} min/day`]),
         ]),
       ]);
-      on(b, 'click', () => { draft.trackId = String(t.trackId); step3(); });
+      on(b, 'click', () => {
+        if (draft.trackId !== String(t.trackId)) draft.variant = null;
+        draft.trackId = String(t.trackId);
+        step3();
+      });
       list.append(b);
+    }
+    const variantPicker: Node[] = [];
+    if (picked?.variants) {
+      const grid = el('div', { class: 'grid3' });
+      for (const v of picked.variants.options) {
+        const b = el('button', {
+          class: 'opt opt--theme', type: 'button',
+          'aria-pressed': String(draft.variant === v.id),
+        }, [el('span', { class: 'ico' }, [v.icon]), el('span', { class: 't' }, [v.label])]);
+        on(b, 'click', () => { draft.variant = v.id; step3(); });
+        grid.append(b);
+      }
+      variantPicker.push(el('div', { style: 'font-weight:800;margin:var(--s-4) 0 var(--s-2)' }, [picked.variants.prompt]), grid);
     }
     on(btn, 'click', () => { step = 4; step4(); });
     screen([
@@ -117,7 +136,7 @@ export function renderOnboarding(
       el('div', { class: 'eyebrow' }, [`Step 3 of ${TOTAL}`]),
       el('h2', {}, ['Pick a track']),
       el('p', {}, [`A daily routine — 12 weeks to start. ${draft.name || 'Your kid'} can add more later; one is plenty to start.`]),
-      list, el('div', { style: 'height:12px' }), btn,
+      list, ...variantPicker, el('div', { style: 'height:12px' }), btn,
     ]);
   }
 
@@ -208,7 +227,7 @@ export function renderOnboarding(
       store.addProfile(draft.name.trim());
       store.recordConsent(draft.guardian, draft.data);
       if (draft.trackId) {
-        store.enroll(draft.trackId, draft.theme ?? 'chess');
+        store.enroll(draft.trackId, draft.theme ?? 'chess', draft.variant ?? undefined);
         const vals: Record<string, number | null> = {};
         for (const [k, i] of inputs) vals[k] = i.value ? Number(i.value) : null;
         if (Object.keys(vals).length) store.setBaseline(draft.trackId, vals);
