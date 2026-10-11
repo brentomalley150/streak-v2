@@ -6,15 +6,17 @@
  */
 import type { Store } from '../core/store.js';
 import { TRACKS } from '../tracks/index.js';
+import { THEMES } from '../tracks/ladders.js';
+import { hasProjection } from '../core/projection.js';
 import { el, clear, on } from './dom.js';
 
 type Draft = { name: string; trackId: string | null; theme: string | null;
-               guardian: boolean; data: boolean };
+               guardian: boolean; data: boolean; projection: boolean };
 
 export function renderOnboarding(
   root: HTMLElement, store: Store, done: () => void, onSetPin?: () => void,
 ): void {
-  const draft: Draft = { name: '', trackId: null, theme: null, guardian: false, data: false };
+  const draft: Draft = { name: '', trackId: null, theme: null, guardian: false, data: false, projection: false };
   let step = 1;
   const TOTAL = 7;
 
@@ -114,26 +116,25 @@ export function renderOnboarding(
       dots(),
       el('div', { class: 'eyebrow' }, [`Step 3 of ${TOTAL}`]),
       el('h2', {}, ['Pick a track']),
-      el('p', {}, [`A 12-week program. ${draft.name || 'Your kid'} can add more later — one is plenty to start.`]),
+      el('p', {}, [`A daily routine — 12 weeks to start. ${draft.name || 'Your kid'} can add more later; one is plenty to start.`]),
       list, el('div', { style: 'height:12px' }), btn,
     ]);
   }
 
   function step4(): void {
-    const themes = draft.trackId
+    const allowed = draft.trackId
       ? (TRACKS.find((t) => String(t.trackId) === draft.trackId)?.themes ?? [])
       : [];
-    const ICONS: Record<string, string> = { chess: '♟️', sports: '⚽', music: '🎸', gaming: '🎮' };
-    const grid = el('div', { class: 'grid2' });
-    for (const th of themes) {
+    const grid = el('div', { class: 'grid3' });
+    for (const th of THEMES.filter((x) => allowed.includes(x.id))) {
       const b = el('button', {
-        class: 'opt', type: 'button', style: 'flex-direction:column;align-items:center;text-align:center',
-        'aria-pressed': String(draft.theme === th),
+        class: 'opt opt--theme', type: 'button',
+        'aria-pressed': String(draft.theme === th.id),
       }, [
-        el('span', { class: 'ico' }, [ICONS[th] ?? '⭐']),
-        el('span', { class: 't' }, [th.charAt(0).toUpperCase() + th.slice(1)]),
+        el('span', { class: 'ico' }, [th.icon]),
+        el('span', { class: 't' }, [th.label]),
       ]);
-      on(b, 'click', () => { draft.theme = th; step4(); });
+      on(b, 'click', () => { draft.theme = th.id; step4(); });
       grid.append(b);
     }
     const btn = el('button', { class: 'btn', type: 'button' }, ['Continue']);
@@ -143,7 +144,7 @@ export function renderOnboarding(
       dots(),
       el('div', { class: 'eyebrow' }, [`Step 4 of ${TOTAL}`]),
       el('h2', {}, [`Let ${draft.name || 'them'} pick a theme`]),
-      el('p', {}, ['This sets the rank names and the daily ideas. Hand them the phone for this one.']),
+      el('p', {}, ['This sets the rank names and the daily ideas. They can change it any time and keep their points. Hand them the phone for this one.']),
       grid, el('div', { style: 'height:12px' }), btn,
     ]);
   }
@@ -199,7 +200,7 @@ export function renderOnboarding(
     const list = el('div', {});
     for (const f of fields) {
       const i = el('input', { class: 'input', type: 'number', inputmode: 'numeric',
-        placeholder: f.placeholder ?? '' });
+        placeholder: f.placeholder ? `e.g. ${f.placeholder}` : '' });
       inputs.set(f.id, i as HTMLInputElement);
       list.append(el('label', { class: 'field' }, [el('span', {}, [f.label]), i]));
     }
@@ -211,6 +212,11 @@ export function renderOnboarding(
         const vals: Record<string, number | null> = {};
         for (const [k, i] of inputs) vals[k] = i.value ? Number(i.value) : null;
         if (Object.keys(vals).length) store.setBaseline(draft.trackId, vals);
+        // Only if the parent ticked it AND entered the score it runs on.
+        const pf = def?.outcomeModel?.projectionField;
+        if (draft.projection && pf && vals[pf] !== null && vals[pf] !== undefined) {
+          store.setProjection(draft.trackId, true);
+        }
       }
       // The profile exists from here on, so step 7 can set a PIN against it.
       step = 7;
@@ -224,12 +230,29 @@ export function renderOnboarding(
     // A track with outcomeModel: null has nothing to ask — skip the step entirely.
     if (!fields.length) { finish(); return; }
 
+    // The fall estimate is opt-in (FR25): unticked by default.
+    const extras: Node[] = [];
+    if (def && hasProjection(def)) {
+      const box = el('button', { class: 'check', type: 'button', role: 'checkbox', 'aria-checked': String(draft.projection) }, ['✓']);
+      on(box, 'click', () => {
+        draft.projection = !draft.projection;
+        box.setAttribute('aria-checked', String(draft.projection));
+      });
+      extras.push(el('div', { class: 'consent' }, [el('div', { class: 'line' }, [
+        box,
+        el('span', { class: 'txt' }, [
+          'Also show me a ', el('strong', {}, ['fall estimate']),
+          ' from the MAP score — a range, just for parents. You can turn it off any time.',
+        ]),
+      ])]));
+    }
+
     screen([
       dots(),
       el('div', { class: 'eyebrow' }, [`Step 6 of ${TOTAL} · Optional`]),
       el('h2', {}, ['Spring test scores?']),
-      el('p', {}, [`If you have them, we'll project where ${draft.name || 'they'} could land in the fall. Skip it — everything else works the same.`]),
-      list, save, skip,
+      el('p', {}, [`If you have them, ${draft.name ? `${draft.name}'s` : 'their'} daily routine will suggest a book level and one thing to focus on. Scores stay with you — never on a leaderboard. Skip it and everything else works the same.`]),
+      list, ...extras, save, skip,
     ]);
   }
 

@@ -9,8 +9,8 @@
  *      interface so the rest of the app — and the tests — never import the SDK.
  */
 import type { Rank, TrackDefinition, TrackState } from './types.js';
-import type { Group, GroupMember } from './groups.js';
-import { computeStats, todayKey } from './engine.js';
+import type { Group, GroupMember, Team } from './groups.js';
+import { computeStats, effectiveDef, pointsForEntry, todayKey } from './engine.js';
 
 /** One kid on one track, as the leaderboard sees them. */
 export interface LeaderboardRow {
@@ -76,6 +76,12 @@ export interface Backend {
   leaveGroup(groupId: string, key: string): Promise<void>;
   /** The groups this account owns. */
   loadMyGroups(): Promise<Group[]>;
+  /** A kid's points inside a challenge window, written by their own family. */
+  saveMemberScore(groupId: string, key: string, points: number): Promise<void>;
+  /** Add a team (a class) to a team challenge (FR31). */
+  createTeam(groupId: string, teamId: string, team: Team): Promise<void>;
+  /** The challenge owner removes a team (e.g. one added by mistake). */
+  deleteTeam(groupId: string, teamId: string): Promise<void>;
 }
 
 /** `${googleUid}_${profileId}` — one slot per kid, siblings distinct. */
@@ -91,15 +97,20 @@ export function weekStartKey(date = new Date()): string {
   return todayKey(d);
 }
 
-/** Points earned since Monday. */
-export function weeklyPoints(def: TrackDefinition, state: TrackState, today = new Date()): number {
+/**
+ * Points earned since Monday. Uses the engine's own scoring, so retired
+ * activities, parent-confirmed chores and bonus activities all count exactly
+ * as they do in the kid's total.
+ */
+export function weeklyPoints(rawDef: TrackDefinition, state: TrackState, today = new Date()): number {
+  const def = effectiveDef(rawDef, state);
   const start = weekStartKey(today);
-  return Object.values(state.entries)
+  const fromEntries = Object.values(state.entries)
     .filter((e) => e.date >= start)
-    .reduce(
-      (sum, e) => sum + def.activities.reduce((n, a) => (e.completed[a.id] ? n + a.points : n), 0),
-      0,
-    );
+    .reduce((sum, e) => sum + pointsForEntry(def, e), 0);
+  const per = def.weeklyBonusPoints ?? 0;
+  const fromBonus = Object.values(state.bonusCompleted ?? {}).filter((d) => d >= start).length * per;
+  return fromEntries + fromBonus;
 }
 
 /**
@@ -158,4 +169,7 @@ export class NullBackend implements Backend {
   async joinGroup(): Promise<void> { /* offline */ }
   async leaveGroup(): Promise<void> { /* offline */ }
   async loadMyGroups(): Promise<Group[]> { return []; }
+  async saveMemberScore(): Promise<void> { /* offline */ }
+  async createTeam(): Promise<void> { /* offline */ }
+  async deleteTeam(): Promise<void> { /* offline */ }
 }

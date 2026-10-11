@@ -62,7 +62,7 @@ export function renderPinGate(
 
 /** Set or change the PIN. Requires the old one when one is already set. */
 export function renderPinSetup(
-  root: HTMLElement, store: Store, done: () => void, onCancel: () => void,
+  root: HTMLElement, store: Store, done: () => void, onCancel: () => void, why?: string,
 ): void {
   clear(root);
   document.documentElement.dataset['surface'] = 'parent';
@@ -94,6 +94,7 @@ export function renderPinSetup(
   screen.append(
     el('div', { class: 'eyebrow' }, ['For parents']),
     el('h2', {}, [changing ? 'Change your PIN' : 'Set a parent PIN']),
+    ...(why && !changing ? [el('p', { style: 'font-weight:700' }, [why])] : []),
     el('p', {}, [
       changing
         ? 'You will need this to reach the parent screens.'

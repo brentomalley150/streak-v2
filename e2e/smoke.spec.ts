@@ -135,3 +135,88 @@ test.describe('nothing asks for money while we are still building', () => {
     expect(tracks.length).toBe(2);
   });
 });
+
+const READER = `
+  const s = window.bts.store;
+  s.resetV2(); localStorage.clear();
+  s.addProfile('Declan'); s.enroll('reading-slide','chess');
+  s.setBaseline('reading-slide', { mapRit: 185, lexile: 375, writtenExpression: 17 });
+  s.addPrize('reading-slide', 'Movie night', '🎬', 3);
+  s.setParentPin('2468');
+`;
+
+async function enterPin(page: Page) {
+  await page.getByLabel('Parent PIN').fill('2468');
+  await page.getByRole('button', { name: 'Continue' }).click();
+}
+
+const pts = (page: Page) => page.evaluate(() => {
+  const st = (window as any).bts.store.activeTrack;
+  return Object.values(st.entries).length + Object.keys(st.bonusCompleted ?? {}).length; // cheap change detector
+});
+
+test.describe('PRD v2 features are reachable and keep their promises', () => {
+  test.beforeEach(async ({ page }) => { await seed(page, READER); await page.reload(); });
+
+  test('Reading is read, write and wrap-up — no Math', async ({ page }) => {
+    await expect(page.locator('.act')).toHaveCount(3);
+    await expect(page.locator('.act', { hasText: 'Math' })).toHaveCount(0);
+  });
+
+  test('the kid can change theme without losing points', async ({ page }) => {
+    await page.locator('.act', { hasText: 'Read' }).click();
+    const before = await page.getByText(/\d+ pts/).first().innerText();
+    await page.getByRole('button', { name: /theme · change/ }).click();
+    await page.getByRole('button', { name: /Dance/ }).click();
+    await expect(page.getByRole('button', { name: /Dance theme · change/ })).toBeVisible();
+    await expect(page.getByText(/\d+ pts/).first()).toHaveText(before);
+  });
+
+  test('the routine shows a focus tip but never a score', async ({ page }) => {
+    await expect(page.getByText(/Focus: write at least three/)).toBeVisible();
+    const body = await page.locator('body').innerText();
+    expect(body).not.toMatch(/\b185\b|\b17%/);
+  });
+
+  test('the weekly bonus is one tap and can be undone', async ({ page }) => {
+    const n0 = await pts(page);
+    await page.getByRole('button', { name: /I did it/ }).click();
+    expect(await pts(page)).toBe(n0 + 1);
+    await page.getByRole('button', { name: /tap to undo/ }).click();
+    expect(await pts(page)).toBe(n0);
+  });
+
+  test('cashing in reaches the parent, who marks it given', async ({ page }) => {
+    await page.locator('.act', { hasText: 'Read' }).click();
+    await page.getByRole('button', { name: /^Cash in/ }).click();
+    await page.getByRole('button', { name: /Prizes.*approvals.*1 waiting/ }).click();
+    await enterPin(page);
+    await page.getByRole('button', { name: /Mark as given/ }).click();
+    await page.getByRole('button', { name: /Back to the app/ }).click();
+    await expect(page.getByText(/Cashed in/)).toBeVisible();
+  });
+
+  test('the fall estimate is off until a parent turns it on', async ({ page }) => {
+    await page.getByRole('button', { name: /Test scores & fall estimate/ }).click();
+    await enterPin(page);
+    await expect(page.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByText(/Keep this pace/)).toHaveCount(0);
+    await page.getByRole('switch').click();
+    // Nothing logged yet today, so it says when it starts rather than guessing.
+    await expect(page.getByText(/starts once Declan logs the first day/)).toBeVisible();
+  });
+
+  test('without a PIN, scores ask a parent to set one first', async ({ page }) => {
+    await page.evaluate(() => (window as any).bts.store.clearParentPin('2468'));
+    await page.reload();
+    await page.getByRole('button', { name: /Test scores & fall estimate/ }).click();
+    await expect(page.getByText(/Set a PIN first, so test scores stay with parents/)).toBeVisible();
+    await expect(page.getByText(/MAP Reading RIT/)).toHaveCount(0);
+  });
+
+  test("the kid's screen never shows the Lexile or the book range", async ({ page }) => {
+    const body = await page.locator('body').innerText();
+    expect(body).not.toMatch(/375|275|425L/);
+    await expect(page.getByText(/just-right book/)).toBeVisible();
+  });
+});

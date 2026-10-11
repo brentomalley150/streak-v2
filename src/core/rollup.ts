@@ -11,7 +11,7 @@
 import type { Profile } from './types.js';
 import type { FamilyRollup } from './sync.js';
 import { getTrack } from '../tracks/index.js';
-import { LADDERS } from '../tracks/ladders.js';
+import { ladderFor } from '../tracks/ladders.js';
 import { computeStats } from './engine.js';
 
 export interface RollupTrackRow {
@@ -56,7 +56,7 @@ export function buildFamilyRollup(
       const st = s.tracks[id];
       if (!st) continue;
       const def = getTrack(id);
-      const stats = computeStats(def, st, LADDERS[def.ladder] ?? LADDERS['chess']!);
+      const stats = computeStats(def, st, ladderFor(def, st));
       const r = remote[s.profileId]?.[id];
       seen.add(id);
       tracks.push({

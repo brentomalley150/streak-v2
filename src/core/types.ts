@@ -31,6 +31,44 @@ export interface Activity {
   readonly icon: string;
   readonly points: number;
   readonly fields: readonly ActivityField[];
+  /** Target time for the daily routine, e.g. 15 for "15 min read". */
+  readonly minutes?: number;
+  /**
+   * Done off-screen (a chore), so a parent confirms it before it scores.
+   * The kid's tap still counts for the streak — it is their effort — but the
+   * points wait for a grown-up (FR30).
+   */
+  readonly needsParentConfirm?: boolean;
+}
+
+/**
+ * Theme ideas for one activity (FR24). Keyed by theme id; '*' is the fallback
+ * used for any theme without its own list. Human-written, never generated.
+ */
+export type IdeaPool = Readonly<Record<string, readonly string[]>>;
+
+/**
+ * One assessment subscore the routine can emphasise. When several are
+ * entered, the LOWEST picks the focus (FR22) — fixed rules, no model.
+ */
+export interface FocusRule {
+  readonly fieldId: string;
+  readonly activityId: string;
+  readonly tip: string;
+}
+
+/**
+ * How a track turns spring scores into a routine. Data, so the engine still
+ * names no track. `levelField` sets the reading level band shown on the read
+ * activity; `focus` picks one activity to emphasise.
+ */
+export interface RoutineRules {
+  readonly levelField?: string;
+  /** Offsets around the level score, e.g. [-100, 50] for a Lexile band. */
+  readonly levelBand?: readonly [number, number];
+  readonly levelActivityId?: string;
+  readonly levelUnit?: string;
+  readonly focus: readonly FocusRule[];
 }
 
 /**
@@ -68,7 +106,11 @@ export interface WeeklyChallenge {
  */
 export interface OutcomeModel {
   readonly baselineFields: readonly ActivityField[];
-  readonly projection: string;
+  /** A projection model id from core/projection.ts, or null for none. */
+  readonly projection: string | null;
+  /** The baseline field the projection runs on (e.g. MAP RIT). */
+  readonly projectionField?: string;
+  readonly routine?: RoutineRules;
 }
 
 export interface TrackDefinition {
@@ -84,8 +126,21 @@ export interface TrackDefinition {
   readonly statColumns: readonly StatColumn[];
   readonly themes: readonly string[];
   readonly ladder: LadderId;
+  /** Shown to kids as the weekly bonus activity (FR26). */
   readonly weeklyChallenges: readonly WeeklyChallenge[];
+  /** Points for completing the week's bonus. Optional — never touches the streak. */
+  readonly weeklyBonusPoints?: number;
   readonly outcomeModel: OutcomeModel | null;
+  /** Theme ideas, keyed by activity id (FR24). */
+  readonly ideas?: Readonly<Record<string, IdeaPool>>;
+  /**
+   * Activities that no longer appear but still SCORE, so history keeps its
+   * points. Reading's old Math activity lives here after Math became its own
+   * track: a migrated family keeps every point it earned.
+   */
+  readonly retiredActivities?: readonly Activity[];
+  /** A parent may replace the activity list (Home Helper's chore list). */
+  readonly customizableActivities?: boolean;
 }
 
 /** DATA-MODEL §3.3 — the generalized DayEntry. */
@@ -98,14 +153,36 @@ export interface DayEntry {
   values: Record<string, string | number>;
   points: number;
   comboClaimed: boolean;
+  /** Parent confirmations for needsParentConfirm activities, keyed by activity id. */
+  confirmed?: Record<string, boolean>;
 }
 
+/**
+ * A family prize (FR27–FR28). `cost` is kept as the field name for v1
+ * compatibility but means the UNLOCK threshold: a prize unlocks when total
+ * points reach it, exactly like a rank. Cashing in never spends points.
+ */
 export interface Prize {
   readonly id: string;
   name: string;
   icon: string;
   cost: number;
+  /** True once a parent has marked it as given. */
   claimed: boolean;
+  /** When the kid asked to cash it in (ISO). */
+  requestedAt?: string;
+  /** When a parent marked it as given (ISO). */
+  givenAt?: string;
+}
+
+/** A challenge this kid has joined — what the family needs to score it. */
+export interface JoinedChallenge {
+  readonly groupId: string;
+  readonly trackId: string;
+  readonly name: string;
+  readonly startDate: string;
+  readonly lengthWeeks: number;
+  readonly teamId?: string;
 }
 
 /** Per-track state. Prizes/goals/baseline are per-track (DATA-MODEL §3.4). */
@@ -126,6 +203,21 @@ export interface TrackState {
   weekFocus?: string;
   /** The week a proposal was last dismissed, so it isn't re-offered. */
   proposalDismissedWeek?: string;
+  /**
+   * Weekly bonus completions this version awards points for, week -> date.
+   * Separate from v1's weeklyChallengesCompleted so migrated history keeps
+   * exactly the points it had.
+   */
+  bonusCompleted?: Record<number, DateKey>;
+  /** Opt-in fall projection (FR25). Off unless a parent turns it on. */
+  projectionOn?: boolean;
+  /** A parent-edited activity list, for tracks that allow it. */
+  customActivities?: Activity[];
+  /**
+   * Chores a parent removed. Still scored, never shown — removing a chore must
+   * not take away the points it already earned.
+   */
+  retiredCustomActivities?: Activity[];
 }
 
 export interface ParentAuth {
@@ -150,6 +242,8 @@ export interface ProfileState {
   entitlement: 'free' | 'family';
   /** COPPA — recorded at onboarding, never assumed. */
   consent: { guardian: boolean; data: boolean; recordedAt: string | null };
+  /** Challenges this kid joined, so the family can publish window scores. */
+  joinedChallenges?: JoinedChallenge[];
 }
 
 export interface Profile {

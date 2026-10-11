@@ -11,7 +11,8 @@ import { renderDigest } from './ui/digest.js';
 import { renderRollup } from './ui/rollup.js';
 import { renderPinGate, renderPinSetup } from './ui/pin.js';
 import { renderMyGroups, renderJoinGroup } from './ui/groups.js';
-import { readJoinCodeFromUrl } from './core/groups.js';
+import { readJoinCodeFromUrl, readTeamFromUrl } from './core/groups.js';
+import { renderPrizes, renderScores } from './ui/parent.js';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('#app not found');
@@ -29,7 +30,7 @@ void createBackend().then((b) => {
 const { migrated } = store.init();
 
 type View = 'onboarding' | 'daily' | 'marketplace' | 'digest' | 'addKid' | 'rollup'
-  | 'setPin' | 'groups' | 'join';
+  | 'setPin' | 'groups' | 'join' | 'prizes' | 'scores';
 
 /**
  * Screens a kid should not wander into. The daily screen is deliberately absent
@@ -43,6 +44,19 @@ const GATED: Partial<Record<View, string>> = {
   rollup: "This shows every kid's progress.",
   groups: 'Challenges you run are a parent job.',
   digest: 'This is your weekly summary.',
+  prizes: 'Prizes and approvals are a parent job.',
+  scores: 'Test scores stay with parents.',
+};
+
+/**
+ * Screens that need a PIN to exist at all, not just to be entered when one is
+ * set. Scores are a child's school data, and chore approvals are what a kid
+ * must not be able to do for themselves (FR21, FR30) — so a family without a
+ * PIN is asked to set one before these open.
+ */
+const NEEDS_PIN: Partial<Record<View, string>> = {
+  scores: 'Set a PIN first, so test scores stay with parents.',
+  prizes: 'Set a PIN first, so only a grown-up can approve chores and give prizes.',
 };
 
 let current: View = 'onboarding';
@@ -64,18 +78,29 @@ function draw(view: View): void {
   } else if (view === 'groups') {
     renderMyGroups(root!, store, () => show('daily'));
   } else if (view === 'join') {
-    renderJoinGroup(root!, store, pendingJoinCode!, () => {
+    renderJoinGroup(root!, store, pendingJoinCode!, pendingTeam, () => {
       pendingJoinCode = null;
+      pendingTeam = null;
       show(store.hasProfile && store.activeTrack ? 'daily' : 'onboarding');
     });
+  } else if (view === 'prizes') {
+    renderPrizes(root!, store, () => show('daily'));
+  } else if (view === 'scores') {
+    renderScores(root!, store, () => show('daily'));
   } else {
     renderDaily(root!, store, () => show('marketplace'), () => show('digest'),
       () => show('addKid'), () => show('rollup'), () => show('setPin'),
-      () => show('groups'));
+      () => show('groups'), () => show('prizes'), () => show('scores'));
   }
 }
 
 function show(view: View): void {
+  const needs = NEEDS_PIN[view];
+  if (needs && !store.pinIsSet) {
+    current = view;
+    renderPinSetup(root!, store, () => draw(view), () => show('daily'), needs);
+    return;
+  }
   const why = GATED[view];
   // Only gate once a parent has actually set a PIN. A family that never set
   // one keeps today's behaviour exactly.
@@ -99,6 +124,7 @@ if (migrated > 0) {
  * refresh does not re-prompt and the link does not linger in history.
  */
 let pendingJoinCode = readJoinCodeFromUrl(location.search);
+let pendingTeam = pendingJoinCode ? readTeamFromUrl(location.search) : null;
 if (pendingJoinCode) history.replaceState(null, '', location.pathname);
 
 if (pendingJoinCode) {

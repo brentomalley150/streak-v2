@@ -5,6 +5,7 @@
  */
 import type { TrackDefinition } from '../core/types.js';
 import { asTrackId, asActivityId } from '../core/types.js';
+import { ALL_THEME_IDS } from './ladders.js';
 
 const CH = (week: number, emoji: string, name: string, short: string) =>
   ({ week, emoji, name, short, full: short });
@@ -19,14 +20,15 @@ export const MUSIC_PRACTICE: TrackDefinition = {
   dailyMinutes: 25,
   lengthWeeks: 12,
   ladder: 'music',
-  themes: ['music', 'gaming', 'sports'],
+  themes: ALL_THEME_IDS,
+  weeklyBonusPoints: 5,
   activities: [
-    { id: asActivityId('practice'), label: 'Practice', icon: '🎹', points: 3, fields: [
+    { id: asActivityId('practice'), label: 'Practice', icon: '🎹', points: 3, minutes: 15, fields: [
       { id: 'minutes', type: 'number', label: 'Minutes', placeholder: '25' },
       { id: 'piece', type: 'text', label: 'Piece', placeholder: 'What did you play?' },
     ] },
-    { id: asActivityId('listen'), label: 'Listen', icon: '🎧', points: 1, fields: [] },
-    { id: asActivityId('learn'), label: 'Learn', icon: '🎼', points: 3, fields: [
+    { id: asActivityId('listen'), label: 'Listen', icon: '🎧', points: 1, minutes: 5, fields: [] },
+    { id: asActivityId('learn'), label: 'Learn', icon: '🎼', points: 3, minutes: 5, fields: [
       { id: 'newSkill', type: 'text', label: 'New bit', placeholder: 'Scale, chord, bar…' },
     ] },
   ],
@@ -34,6 +36,27 @@ export const MUSIC_PRACTICE: TrackDefinition = {
     { id: 'totalMinutes', label: 'Minutes', from: 'sum:minutes' },
     { id: 'practiceDays', label: 'Days', from: 'count:practice' },
   ],
+  ideas: {
+    practice: { '*': [
+      'Start with the hardest bar, not the easiest.',
+      'Play it once slowly, once at full speed.',
+      'Warm up with a scale before your piece.',
+    ] },
+    listen: {
+      chess: ['Listen to calm music while you set up a chess puzzle.'],
+      sports: ['Listen to a song a team plays at its stadium.'],
+      gaming: ['Listen to the music from a video game you like.'],
+      music: ['Listen to a recording of the piece you are learning.'],
+      animals: ['Find a piece of music that sounds like an animal.'],
+      dance: ['Listen to a song and count the beats out loud.'],
+      '*': ['Listen to something new and say one thing you noticed.'],
+    },
+    learn: { '*': [
+      'Learn one new bar today.',
+      'Learn a new chord or note.',
+      'Learn the name of a musical sign in your piece.',
+    ] },
+  },
   weeklyChallenges: [
     CH(1, '🎵', 'Warm Up', 'Play every day this week, even for five minutes.'),
     CH(2, '🎧', 'Listen Close', 'Listen to a piece you are learning, played by a pro.'),

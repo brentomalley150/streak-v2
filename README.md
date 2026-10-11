@@ -40,7 +40,7 @@ per-parent stable UID, composite leaderboard keys). See `BACKEND-SETUP.md` in th
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 35 tests
+npm test           # unit tests (vitest)
 npm run build      # typecheck + production build
 ```
 
@@ -71,7 +71,7 @@ has leaked.
 
 ### Status
 
-Built: the track engine, all three tracks, onboarding with a blocking COPPA
+Built: the track engine, all six tracks, onboarding with a blocking COPPA
 consent gate, the daily screen, the track switcher, the marketplace, the
 free-tier limit, and the v1 migration.
 
@@ -85,5 +85,37 @@ Propose → Confirm loop from `agentic-ai.html`, implemented as deterministic
 rules behind a `Diagnostician` interface an LLM can replace. All six guardrails
 are enforced by tests rather than promised in a prompt.
 
-Not yet built: prizes and trophies, and the parent cross-track rollup *screen*
-(its data already publishes).
+### PRD v2 features (October 2026)
+
+Built to the updated PRD (US-9 to US-17, FR20 to FR32):
+
+- **Reading is read 15 + write 10 + wrap-up 5.** Math is its own track (Math
+  Facts). Reading's old Math activity is kept as `retiredActivities`, so every
+  point a migrated family earned with it still counts.
+- **Six kid-chosen themes** (chess, sports, gaming, music, animals, dance). The
+  rank ladder follows the theme, and every ladder shares v1's thresholds, so
+  switching theme renames the rank without moving the kid up or down.
+- **Theme ideas** for each daily activity, rotating daily (`ideas` on a track).
+- **Weekly bonus activity**: optional extra points, never touches the streak.
+- **Family prizes**: parents set the unlock points; the kid asks to cash in; a
+  parent marks it given. Cashing in never spends points.
+- **Spring scores → routine**: optional MAP RIT, Lexile and CMAS subscores
+  (PIN-gated, family-private). Fixed rules set a book band and one focus tip
+  (`outcomeModel.routine`). Kids see the tip, never the score.
+- **Fall estimate** (`src/core/projection.ts`, PRD §3.6): off until a parent
+  turns it on, parent-only, shown as a range with a plain-language explanation.
+  `READING_V1_NO_ROUTINE_12W` is a provisional placeholder pending a research
+  source (PRD open question 13).
+- **New tracks**: Back to School, Home Helper (chores a parent confirms before
+  they score; parents can edit the chore list), Mindful Kid.
+- **Challenge length**: a challenge has a start date and 2–12 week length;
+  members' points count only inside the window, written by each kid's family.
+- **Class vs. class**: teams inside a challenge, ranked by average points per
+  kid. Each teacher adds their own class and shares their class's link.
+
+**Firebase rules changed** (`firebase.rules.json` / `.paste.json`): group meta
+gains `startDate`, `lengthWeeks`, `mode`; members gain `points` and `team`; a
+new `teams` node. Publish the paste file in the Firebase console before using
+challenges against the live database. Challenge creation is now a multi-path
+update, because the rules grant write on `meta` and `teams`, never on the group
+node itself.
