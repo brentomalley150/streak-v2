@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   computeStats, currentStreak, longestStreak, pointsForEntry, rankFor,
-  toggleActivity, makeEntry, weekNumber, canEnroll, canEnrollNow, computeStatColumns, addDays,
+  toggleActivity, makeEntry, weekNumber, canEnroll, canEnrollNow, freeTrackLimit, computeStatColumns, addDays,
 } from './engine.js';
 import { asDateKey, type DayEntry, type Rank, type TrackDefinition, type TrackState } from './types.js';
 import { READING_SLIDE } from '../tracks/reading-slide.js';
@@ -166,6 +166,13 @@ describe('date maths', () => {
 });
 
 describe('billing is switched off while we build', () => {
+  it('SummerStreak kids get a second free track (the PRD\'s free fall track)', () => {
+    expect(freeTrackLimit({})).toBe(1);
+    expect(freeTrackLimit({ summer: { points: 1 } })).toBe(2);
+    expect(canEnroll('free', 1, freeTrackLimit({ summer: {} }))).toBe(true);
+    expect(canEnroll('free', 2, freeTrackLimit({ summer: {} }))).toBe(false);
+  });
+
   it('canEnroll still encodes FR7 unchanged, so the rule survives', () => {
     expect(canEnroll('free', 0)).toBe(true);
     expect(canEnroll('free', 1)).toBe(false);

@@ -22,6 +22,8 @@ export function renderOnboarding(
   let step = 1;
   /** More than one kid came in at once (SummerStreak import). */
   let many = false;
+  /** The kids came from SummerStreak: the handoff mentions their free fall track. */
+  let fromSummer = false;
   const TOTAL = 7;
 
   const dots = () => {
@@ -183,6 +185,7 @@ export function renderOnboarding(
     on(go, 'click', () => {
       const picked = kids.filter((k) => chosen.has(k.profileId));
       store.importSummerKids(picked, { guardian, data });
+      fromSummer = true;
       draft.name = picked.map((k) => k.name).join(' and ');
       many = picked.length > 1;
       step = 7; step7();
@@ -193,9 +196,10 @@ export function renderOnboarding(
 
     screen([
       dots(),
-      el('div', { class: 'eyebrow' }, ['Welcome back']),
+      el('div', { class: 'eyebrow' }, ['SummerStreak is now Beat the Slide']),
       el('h2', {}, ['Your summer is still here']),
-      el('p', {}, [`We found ${kids.length === 1 ? 'your kid' : `${kids.length} kids`} from SummerStreak on this Google account. Their points and rank come with them; streaks start fresh this fall.`]),
+      el('p', {}, ['Same game — streaks, points and ranks — now all year, with tracks for math, music, chores and more.']),
+      el('p', {}, [`We found ${kids.length === 1 ? 'your kid' : `${kids.length} kids`} from SummerStreak on this Google account. Their points and rank come with them, streaks start fresh this fall, and ${kids.length === 1 ? 'they get' : 'each gets'} a second track free.`]),
       list, consent,
       el('p', { class: 'muted' }, ["Other families on the same track can see your kid's first name, avatar and progress, like points and minutes read. Never a last name, photo, or location."]),
       go, fresh,
@@ -420,6 +424,10 @@ export function renderOnboarding(
       ]);
 
     const points = el('div', {}, [
+      ...(fromSummer ? [point('🎁', [
+        'As a SummerStreak family, ', el('strong', {}, [many ? 'each kid gets a second track free' : 'your kid gets a second track free']),
+        '. Back to School and Math Facts are good fall picks.',
+      ])] : []),
       point('📱', [
         'This lives on ', el('strong', {}, ['this phone']),
         `. Hand it to ${name} when it's their turn.`,

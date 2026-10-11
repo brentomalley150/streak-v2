@@ -481,9 +481,18 @@ export function challengeForWeek(
  * the rule survives intact while billing is switched off.
  */
 export function canEnroll(
-  entitlement: 'free' | 'family', enrolledCount: number,
+  entitlement: 'free' | 'family', enrolledCount: number, freeTracks = 1,
 ): boolean {
-  return entitlement === 'family' || enrolledCount < 1;
+  return entitlement === 'family' || enrolledCount < freeTracks;
+}
+
+/**
+ * Free tracks for this kid. SummerStreak kids get one more: the PRD promised
+ * summer families a free fall track, and this keeps that promise once billing
+ * is switched on.
+ */
+export function freeTrackLimit(state: { summer?: unknown }): number {
+  return state.summer ? 2 : 1;
 }
 
 /**
@@ -491,7 +500,7 @@ export function canEnroll(
  * enrollable — we do not enforce a limit we are not charging for.
  */
 export function canEnrollNow(
-  entitlement: 'free' | 'family', enrolledCount: number,
+  entitlement: 'free' | 'family', enrolledCount: number, freeTracks = 1,
 ): boolean {
-  return !BILLING_ENABLED || canEnroll(entitlement, enrolledCount);
+  return !BILLING_ENABLED || canEnroll(entitlement, enrolledCount, freeTracks);
 }

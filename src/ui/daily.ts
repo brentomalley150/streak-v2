@@ -8,7 +8,7 @@ import { asDateKey } from '../core/types.js';
 import { getTrack, TRACKS } from '../tracks/index.js';
 import { THEMES, ladderFor, themeInfo } from '../tracks/ladders.js';
 import {
-  computeStats, todayKey, addDays, earliestLoggable, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, pointsForEntry, perfectDayBonus, canEnrollNow,
+  computeStats, todayKey, addDays, earliestLoggable, getEntry, weekNumber, challengeForWeek, maxPointsPerDay, pointsForEntry, perfectDayBonus, canEnrollNow, freeTrackLimit,
   effectiveDef, variantFor, ideasFor, routinePlan, activityScores, prizeStatus, pendingConfirmations,
   challengeWindow, pointsInWindow,
 } from '../core/engine.js';
@@ -84,11 +84,20 @@ export function renderDaily(
       r.totalMinutes ? `${r.totalMinutes} minutes read` : ''].filter(Boolean);
     const ok = el('button', { class: 'btn btn--link btn--small', type: 'button' }, ['Got it']);
     on(ok, 'click', () => { store.dismissSummerRecap(); rerender(); });
+    // One track so far: the free fall track is the natural next step.
+    const actions: Node[] = [];
+    if (Object.keys(s.tracks).length < freeTrackLimit(s)) {
+      const add = el('button', { class: 'btn btn--small', type: 'button' }, ['Add a fall track']);
+      on(add, 'click', () => { store.dismissSummerRecap(); onMarketplace(); });
+      actions.push(add);
+    }
+    actions.push(ok);
     screen.append(el('div', { class: 'mod', role: 'status' }, [
       el('div', { class: 'head' }, ['☀️ Welcome back']),
       el('div', { style: 'font-weight:800;margin-bottom:var(--s-1)' }, [`Your summer is here, ${s.playerName}!`]),
       el('div', { class: 'muted' }, [bits.join(' · ')]),
-      ok,
+      el('p', { style: 'margin:var(--s-2) 0' }, ['SummerStreak is now Beat the Slide: same game, now all year. You get a second track free — try Back to School or Math Facts.']),
+      el('div', { class: 'row' }, actions),
     ]));
   }
 
@@ -570,7 +579,7 @@ export function renderDaily(
   // add-a-track affordance, gated by FR7
   const enrolled = Object.keys(s.tracks).length;
   const more = el('button', { class: 'btn btn--ghost', type: 'button' },
-    [canEnrollNow(s.entitlement, enrolled) ? '＋ Add another track' : '🔒 Add another track']);
+    [canEnrollNow(s.entitlement, enrolled, freeTrackLimit(s)) ? '＋ Add another track' : '🔒 Add another track']);
   on(more, 'click', onMarketplace);
   screen.append(more);
 
@@ -591,7 +600,7 @@ export function renderMarketplace(root: HTMLElement, store: Store, back: () => v
 
   for (const def of TRACKS) {
     const on_ = enrolled.includes(String(def.trackId));
-    const allowed = on_ || canEnrollNow(s.entitlement, enrolled.length);
+    const allowed = on_ || canEnrollNow(s.entitlement, enrolled.length, freeTrackLimit(s));
     const card = el('div', { class: 'mod' }, [
       el('div', { class: 'row' }, [
         el('span', { style: 'font-size:24px' }, [def.icon]),
@@ -615,7 +624,7 @@ export function renderMarketplace(root: HTMLElement, store: Store, back: () => v
       // Reached only when billing is enabled; the copy names no price, because
       // pricing is not decided (PRD §5.3 and its open Instructor-tier question).
       card.append(el('p', { class: 'muted', style: 'margin-top:8px' },
-        ['🔒 One track at a time on the free plan.']));
+        [freeTrackLimit(s) > 1 ? '🔒 Two tracks on the free plan — one extra for SummerStreak families.' : '🔒 One track at a time on the free plan.']));
     }
     screen.append(card);
   }
