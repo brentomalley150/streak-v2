@@ -9,6 +9,7 @@
  *      interface so the rest of the app — and the tests — never import the SDK.
  */
 import type { Rank, TrackDefinition, TrackState } from './types.js';
+import type { ProfileBackup } from './backup.js';
 import type { Group, GroupMember, Team } from './groups.js';
 import { computeStats, effectiveDef, pointsForEntry, todayKey } from './engine.js';
 
@@ -82,6 +83,10 @@ export interface Backend {
   deleteKidData(kid: { key: string; profileId: string; trackIds: string[]; groupIds: string[] }): Promise<void>;
   /** Remove this account's whole family record (rollup and challenge index). */
   deleteFamilyRecord(): Promise<void>;
+  /** Save one kid's restorable copy to this account's private family record. */
+  saveProfileBackup(profileId: string, backup: ProfileBackup): Promise<void>;
+  /** Every kid this account has backed up, raw, by profile id. `{}` signed out. */
+  loadProfileBackups(): Promise<Record<string, unknown>>;
 
   /** Groups (FR13–FR18). All no-ops offline; the app stays usable without them. */
   createGroup(group: Group): Promise<void>;
@@ -230,6 +235,8 @@ export class NullBackend implements Backend {
   async loadV1Kids(): Promise<V1Kid[]> { return []; }
   async deleteKidData(): Promise<void> { /* nothing in the cloud */ }
   async deleteFamilyRecord(): Promise<void> { /* nothing in the cloud */ }
+  async saveProfileBackup(): Promise<void> { /* offline: the device is the copy */ }
+  async loadProfileBackups(): Promise<Record<string, unknown>> { return {}; }
   async createGroup(): Promise<void> { /* offline: nothing to share with */ }
   async loadGroup(): Promise<Group | null> { return null; }
   async joinGroup(): Promise<void> { /* offline */ }

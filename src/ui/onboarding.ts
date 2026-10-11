@@ -10,6 +10,7 @@ import { THEMES } from '../tracks/ladders.js';
 import { hasProjection } from '../core/projection.js';
 import { el, clear, on } from './dom.js';
 import type { V1Kid } from '../core/sync.js';
+import type { ProfileBackup } from '../core/backup.js';
 
 type Draft = { name: string; trackId: string | null; variant: string | null; theme: string | null;
                guardian: boolean; data: boolean; projection: boolean };
@@ -78,9 +79,63 @@ export function renderOnboarding(
 
   /** Signed in: a SummerStreak family gets their kids back before anything else. */
   async function afterSignIn(): Promise<void> {
+    const saved = await store.findRestorableKids();
+    if (saved.length) { restoreStep(saved); return; }
+    await afterRestore(false);
+  }
+
+  /** After any restore: SummerStreak kids next, else the handoff (or a fresh start). */
+  async function afterRestore(restored: boolean): Promise<void> {
     const kids = await store.findSummerKids();
     if (kids.length) { summerStep(kids); return; }
+    if (restored) { step = 7; step7(); return; }
     step = 2; step2();
+  }
+
+  /**
+   * A new device on a family's account: bring their kids back with their
+   * progress, prizes and settings. Consent was given when each kid was set
+   * up, and comes back with them.
+   */
+  function restoreStep(saved: ProfileBackup[]): void {
+    const chosen = new Set(saved.map((k) => k.state.profileId));
+    const go = el('button', { class: 'btn', type: 'button' }, ['Restore']);
+    const sync = () => { go.disabled = chosen.size === 0; };
+    const list = el('div', { class: 'stack', style: 'margin-bottom:var(--s-4)' });
+    for (const k of saved) {
+      const id = k.state.profileId;
+      const tracks = Object.keys(k.state.tracks).map((t) => TRACKS.find((d) => String(d.trackId) === t)?.name ?? t);
+      const b = el('button', { class: 'opt', type: 'button', 'aria-pressed': 'true' }, [
+        el('span', { class: 'ico' }, [k.state.playerAvatar || '🙂']),
+        el('span', {}, [
+          el('span', { class: 't' }, [k.state.playerName]),
+          el('span', { class: 'd' }, [tracks.length ? tracks.join(' · ') : 'No tracks yet']),
+        ]),
+      ]);
+      on(b, 'click', () => {
+        if (chosen.has(id)) chosen.delete(id); else chosen.add(id);
+        b.setAttribute('aria-pressed', String(chosen.has(id)));
+        sync();
+      });
+      list.append(b);
+    }
+    on(go, 'click', () => {
+      const picked = saved.filter((k) => chosen.has(k.state.profileId));
+      store.restoreKids(picked);
+      draft.name = picked.map((k) => k.state.playerName).join(' and ');
+      many = picked.length > 1;
+      void afterRestore(true);
+    });
+    const fresh = el('button', { class: 'btn btn--link', type: 'button' }, ['Start fresh instead']);
+    on(fresh, 'click', () => { void afterRestore(false); });
+    sync();
+    screen([
+      dots(),
+      el('div', { class: 'eyebrow' }, ['Welcome back']),
+      el('h2', {}, [saved.length === 1 ? `Restore ${saved[0]!.state.playerName}?` : 'Restore your kids?']),
+      el('p', {}, ['Their progress, prizes and settings are saved to this Google account. Test scores stay on the device they were entered on, and you\'ll set a new parent PIN here.']),
+      list, go, fresh,
+    ]);
   }
 
   /**
@@ -403,5 +458,12 @@ export function renderOnboarding(
 
   step1();
   // Already signed in (adding a kid): check for SummerStreak kids straight away.
-  if (store.user) void store.findSummerKids().then((k) => { if (k.length && step === 1) summerStep(k); });
+  if (store.user) {
+    void store.findRestorableKids().then(async (saved) => {
+      if (step !== 1) return;
+      if (saved.length) { restoreStep(saved); return; }
+      const kids = await store.findSummerKids();
+      if (kids.length && step === 1) summerStep(kids);
+    });
+  }
 }

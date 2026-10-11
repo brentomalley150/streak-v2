@@ -19,6 +19,7 @@ import {
 } from './groups.js';
 import { migrateV1State } from './storage.js';
 import { Store } from './store.js';
+import { fromBackup } from './backup.js';
 import { asActivityId, asDateKey, type DayEntry, type TrackDefinition, type TrackState } from './types.js';
 import type { AuthUser, Backend, LeaderboardRow, V1Kid } from './sync.js';
 import { v1KidsFromLeaderboard } from './sync.js';
@@ -587,6 +588,9 @@ class FakeBackend implements Backend {
     this.deleted.push(kid);
   }
   async deleteFamilyRecord() { this.familyDeleted = true; }
+  backups: Record<string, unknown> = {};
+  async saveProfileBackup(profileId: string, backup: unknown) { this.backups[profileId] = JSON.parse(JSON.stringify(backup)); }
+  async loadProfileBackups() { return this.backups; }
   async createGroup() {}
   async loadGroup() { return null; }
   async joinGroup(groupId: string, key: string, member: GroupMember) { this.joined.push({ groupId, key, member }); }
@@ -709,6 +713,92 @@ describe('"Delete anytime": a parent deletes a kid', () => {
     expect(store.hasProfile).toBe(false);
     expect(b.deleted.length).toBe(2);
     expect(b.familyDeleted).toBe(true);
+  });
+});
+
+/** What Firebase does to a stored value: drops empty objects and arrays. */
+function asFirebaseStores(v: unknown): unknown {
+  if (Array.isArray(v)) {
+    const a = v.map(asFirebaseStores).filter((x) => x !== undefined);
+    return a.length ? a : undefined;
+  }
+  if (v && typeof v === 'object') {
+    const o: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v)) { const y = asFirebaseStores(x); if (y !== undefined) o[k] = y; }
+    return Object.keys(o).length ? o : undefined;
+  }
+  return v;
+}
+
+describe('restore on a new device', () => {
+  function oldPhone() {
+    const store = new Store(new MemStorage());
+    const b = new FakeBackend();
+    store.attachBackend(b);
+    store.init();
+    store.addProfile('Declan');
+    store.enroll('reading-slide', 'chess');
+    store.toggle('read');
+    store.toggle('write');
+    store.setBaseline('reading-slide', { mapRit: 185, lexile: 375 });
+    store.setParentPin('2468');
+    store.addPrize('reading-slide', 'Ice cream', '🍦', 20);
+    store.state!.consent = { guardian: true, data: true, recordedAt: '2026-10-01T00:00:00Z' };
+    return { store, b };
+  }
+
+  it('backs up progress and prizes, never test scores or the PIN', async () => {
+    const { store, b } = oldPhone();
+    await store.publishAll();
+    const saved = JSON.stringify(b.backups);
+    expect(saved).toContain('Ice cream');
+    expect(saved).not.toContain('185');
+    expect(saved).not.toContain(store.state!.parentAuth.adminPinHash);
+  });
+
+  it('a new phone gets the kid back with the same points, rank and log', async () => {
+    const { store: old, b } = oldPhone();
+    await old.publishAll();
+    const t0 = old.activeTrack!;
+    const before = computeStats(READING_SLIDE, t0, ladderFor(READING_SLIDE, t0));
+    // Firebase drops empty containers; the restore has to put them back.
+    b.backups = asFirebaseStores(b.backups) as Record<string, unknown>;
+
+    const fresh = new Store(new MemStorage());
+    fresh.attachBackend(b);
+    fresh.init();
+    const found = await fresh.findRestorableKids();
+    expect(found.map((k) => k.state.playerName)).toEqual(['Declan']);
+    expect(fresh.restoreKids(found)).toBe(1);
+
+    const t = fresh.activeTrack!;
+    const after = computeStats(READING_SLIDE, t, ladderFor(READING_SLIDE, t));
+    expect(after.points).toBe(before.points);
+    expect(after.rank.name).toBe(before.rank.name);
+    expect(t.prizes.map((p) => p.name)).toEqual(['Ice cream']);
+    expect(t.baseline).toEqual({});
+    expect(fresh.pinIsSet).toBe(false);
+    expect(fresh.state!.consent.guardian).toBe(true);
+    fresh.toggle('closeout'); // still a working profile
+    expect(fresh.activeTrack!.entries[Object.keys(t.entries)[0]!]!.completed['closeout']).toBe(true);
+  });
+
+  it("doesn't offer kids already here, or kids a parent deleted", async () => {
+    const { store, b } = oldPhone();
+    await store.publishAll();
+    expect(await store.findRestorableKids()).toEqual([]);
+    const fresh = new Store(new MemStorage());
+    fresh.attachBackend(b);
+    fresh.init();
+    const [k] = await fresh.findRestorableKids();
+    fresh.restoreKids([k!]);
+    await fresh.deleteProfile(k!.state.profileId);
+    expect(await fresh.findRestorableKids()).toEqual([]);
+  });
+
+  it('ignores a record that is not a kid', () => {
+    expect(fromBackup({ savedAt: 1, state: { nope: true } })).toBeNull();
+    expect(fromBackup(null)).toBeNull();
   });
 });
 

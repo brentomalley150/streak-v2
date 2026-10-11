@@ -18,6 +18,7 @@ import { hashPin, isValidPin, verifyPin } from './pin.js';
 import type { Group } from './groups.js';
 import { generateJoinCode, generateTeamId, groupWindow, newGroup } from './groups.js';
 import { leaderboardKey } from './sync.js';
+import { fromBackup, toBackup, type ProfileBackup } from './backup.js';
 import { ladderFor } from '../tracks/ladders.js';
 
 type Listener = () => void;
@@ -133,6 +134,8 @@ export class Store {
         }
         await Promise.all(rows.map((r) => b.publish(r)));
         await b.saveRollup(s.profileId, rows);
+        // The restorable copy: everything but test scores and the PIN.
+        await b.saveProfileBackup(s.profileId, toBackup(s));
         // Each challenge this kid joined gets their points inside its window
         // (FR29). Written under their own key, so the rules let only this
         // family write it.
@@ -295,6 +298,41 @@ export class Store {
       try { await b.deleteFamilyRecord(); result = 'deleted'; } catch { return 'failed'; }
     }
     return result;
+  }
+
+  /**
+   * Kids this account backed up that aren't on this device: what a parent
+   * gets back on a new phone. Deleted kids are never offered. Newest first.
+   */
+  async findRestorableKids(): Promise<ProfileBackup[]> {
+    const b = this.backend;
+    if (!b?.enabled || !b.user) return [];
+    const raw = await b.loadProfileBackups();
+    const gone = new Set(loadDeleted(this.ls));
+    return Object.values(raw)
+      .map((r) => fromBackup(r))
+      .filter((k): k is ProfileBackup => !!k
+        && !gone.has(k.state.profileId)
+        && !this.profiles.some((p) => p.id === k.state.profileId))
+      .sort((a, z) => z.savedAt - a.savedAt);
+  }
+
+  /**
+   * Put backed-up kids on this device, with everything the backup holds.
+   * Test scores and the PIN were never in it: scores stay on the old device,
+   * and a parent sets a new PIN here. Returns how many were added.
+   */
+  restoreKids(kids: readonly ProfileBackup[]): number {
+    let added = 0;
+    for (const k of kids) {
+      const id = k.state.profileId;
+      if (this.profiles.some((p) => p.id === id)) continue;
+      this.profiles.push({ id, schemaVersion: 2, state: k.state });
+      if (added === 0) this.currentId = id;
+      added += 1;
+    }
+    if (added) this.emit();
+    return added;
   }
 
   /** Close the welcome-back card for the current kid. */
