@@ -1,0 +1,54 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Beat the Slide</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--bg); color:var(--ink); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; overflow:hidden; }
+  .art svg { display:block; width:480px; height:288px; }
+  .brand { fill:var(--purple); }
+  .deep { fill:var(--purple-dark); }
+  .gold { fill:var(--gold); }
+  .done { fill:var(--green); }
+  .slab { rx:var(--r-lg); }
+  .blk { rx:var(--r-md); }
+  .lozenge { rx:var(--s-5); }
+  .pill { rx:var(--s-2); }
+  .words { position:absolute; left:var(--s-6); bottom:var(--s-6); max-width:440px; }
+  .name { margin:0; font-size:88px; line-height:.95; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+  .tag { margin:var(--s-3) 0 0 4px; font-size:14px; line-height:20px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      purple 144×232 slab bled off the top (the brand, largest) · purple-dark 128×160 · gold disc r=56 (achievement: the streak flame's color) · green 112×48 lozenge (done) — about 25% of 960×288
+  arrangement one tall purple slab with satellites; bottoms of slab, block and lozenge on one line at 216, s-4 gutters
+  pattern     a literal motif, the week's streak: s-2-radius pills at an s-7 pitch along the bottom, five gold days and today in green — "streak, not intensity" is what the app rewards
+  scales      gutters s-4 (16); pitch s-7 (48); pill 40×16 with rx s-2 (half its height); slab radius r-lg, block r-md, lozenge rx s-5 (half its 48 height)
+-->
+<rect class="brand slab" x="32" y="-16" width="144" height="232"/>
+<rect class="deep blk" x="192" y="56" width="128" height="160"/>
+<circle class="gold" cx="400" cy="88" r="56"/>
+<rect class="done lozenge" x="336" y="168" width="112" height="48"/>
+<rect class="gold pill" x="32" y="240" width="40" height="16"/>
+<rect class="gold pill" x="80" y="240" width="40" height="16"/>
+<rect class="gold pill" x="128" y="240" width="40" height="16"/>
+<rect class="gold pill" x="176" y="240" width="40" height="16"/>
+<rect class="gold pill" x="224" y="240" width="40" height="16"/>
+<rect class="done pill" x="272" y="240" width="40" height="16"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">Beat the Slide</h1>
+<p class="tag">A game for kids, a calm dashboard for parents.</p>
+</div>
+</div>
+</body>
+</html>
