@@ -18,8 +18,9 @@ export interface LeaderboardRow {
   profileId: string;
   leaderboardKey: string;
   // No ownerEmail, deliberately. This row is written to a node any signed-in
-  // user can read, so it must carry only what the consent screen promises:
-  // a first name and a score. v2.0 published the parent's account email here.
+  // user can read, so it must carry only what the consent screen discloses:
+  // a first name, an avatar and progress. v2.0 published the parent's account
+  // email here.
   name: string;
   avatar: string;
   trackId: string;
