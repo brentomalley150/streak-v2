@@ -31,6 +31,7 @@
   --text-on-accent: #FFFFFF;
 
   /* Type scale */
+  --t-hero: 64px; /* marketing headline cap — landing hero only, never in the app */
   --t-display: 40px; --t-h1: 30px; --t-h2: 22px; --t-h3: 18px;
   --t-body: 16px; --t-body-sm: 14px; --t-caption: 13px; --t-micro: 11px;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
