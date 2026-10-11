@@ -579,6 +579,14 @@ class FakeBackend implements Backend {
   async loadRollup() { return {}; }
   v1Kids: V1Kid[] = [];
   async loadV1Kids() { return this.v1Kids; }
+  deleted: Array<{ key: string; profileId: string; trackIds: string[]; groupIds: string[] }> = [];
+  familyDeleted = false;
+  failDeletes = false;
+  async deleteKidData(kid: { key: string; profileId: string; trackIds: string[]; groupIds: string[] }) {
+    if (this.failDeletes) throw new Error('offline');
+    this.deleted.push(kid);
+  }
+  async deleteFamilyRecord() { this.familyDeleted = true; }
   async createGroup() {}
   async loadGroup() { return null; }
   async joinGroup(groupId: string, key: string, member: GroupMember) { this.joined.push({ groupId, key, member }); }
@@ -635,6 +643,72 @@ describe('summer families bring their SummerStreak progress', () => {
     expect(left.map((k) => k.name)).toEqual(['Ava']);
     expect(store.importSummerKids(b.v1Kids, { guardian: true, data: true })).toBe(1);
     expect(store.all.length).toBe(2);
+  });
+});
+
+describe('"Delete anytime": a parent deletes a kid', () => {
+  function family() {
+    const store = new Store(new MemStorage());
+    const b = new FakeBackend();
+    store.attachBackend(b);
+    store.init();
+    const declan = store.addProfile('Declan');
+    store.enroll('reading-slide', 'chess');
+    store.enroll('music-practice', 'chess');
+    store.state!.joinedChallenges = [{ groupId: 'g1', trackId: 'reading-slide', name: 'Book club', startDate: '2026-10-01', lengthWeeks: 4 }];
+    const ava = store.addProfile('Ava');
+    store.enroll('math-facts', 'space');
+    return { store, b, declan, ava };
+  }
+
+  it('removes the kid from the cloud first, then from this device', async () => {
+    const { store, b, declan } = family();
+    expect(await store.deleteProfile(declan.id)).toBe('deleted');
+    expect(b.deleted).toEqual([{
+      key: `u_kate_${declan.id}`, profileId: declan.id,
+      trackIds: ['reading-slide', 'music-practice'], groupIds: ['g1'],
+    }]);
+    expect(store.all.map((p) => p.state.playerName)).toEqual(['Ava']);
+  });
+
+  it('keeps the kid when the cloud delete fails, so nothing is orphaned', async () => {
+    const { store, b, declan } = family();
+    b.failDeletes = true;
+    expect(await store.deleteProfile(declan.id)).toBe('failed');
+    expect(store.all.length).toBe(2);
+  });
+
+  it('signed out, clears this device and says so', async () => {
+    const store = new Store(new MemStorage());
+    store.init();
+    const p = store.addProfile('Declan');
+    expect(await store.deleteProfile(p.id)).toBe('device-only');
+    expect(store.hasProfile).toBe(false);
+  });
+
+  it('a deleted kid stays deleted: no v1 re-migration, no summer re-offer', async () => {
+    const ls = new MemStorage();
+    ls.setItem('summerstreak-profiles', JSON.stringify([{ id: 'p_declan', state: { player: { name: 'Declan' }, entries: {} } }]));
+    const store = new Store(ls);
+    const b = new FakeBackend();
+    b.v1Kids = v1KidsFromLeaderboard({ a: { uid: 'u_kate', profileId: 'p_declan', name: 'Declan', points: 40 } }, 'u_kate');
+    store.attachBackend(b);
+    store.init();
+    expect(store.all.map((p) => p.id)).toEqual(['p_declan']);
+    expect(await store.deleteProfile('p_declan')).toBe('deleted');
+    const again = new Store(ls);
+    again.attachBackend(b);
+    again.init();
+    expect(again.hasProfile).toBe(false);
+    expect(await again.findSummerKids()).toEqual([]);
+  });
+
+  it('"Delete everything" removes every kid and the family record', async () => {
+    const { store, b } = family();
+    expect(await store.deleteEverything()).toBe('deleted');
+    expect(store.hasProfile).toBe(false);
+    expect(b.deleted.length).toBe(2);
+    expect(b.familyDeleted).toBe(true);
   });
 });
 

@@ -12,7 +12,7 @@ import { renderRollup } from './ui/rollup.js';
 import { renderPinGate, renderPinSetup } from './ui/pin.js';
 import { renderMyGroups, renderJoinGroup } from './ui/groups.js';
 import { readJoinCodeFromUrl, readTeamFromUrl } from './core/groups.js';
-import { renderPrizes, renderScores } from './ui/parent.js';
+import { renderPrizes, renderScores, renderSettings } from './ui/parent.js';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('#app not found');
@@ -30,7 +30,7 @@ void createBackend().then((b) => {
 const { migrated } = store.init();
 
 type View = 'onboarding' | 'daily' | 'marketplace' | 'digest' | 'addKid' | 'rollup'
-  | 'setPin' | 'groups' | 'join' | 'prizes' | 'scores';
+  | 'setPin' | 'groups' | 'join' | 'prizes' | 'scores' | 'settings';
 
 /**
  * Screens a kid should not wander into. The daily screen is deliberately absent
@@ -46,6 +46,7 @@ const GATED: Partial<Record<View, string>> = {
   digest: 'This is your weekly summary.',
   prizes: 'Prizes and approvals are a parent job.',
   scores: 'Test scores stay with parents.',
+  settings: 'Deleting a kid’s data is a parent job.',
 };
 
 /**
@@ -57,6 +58,7 @@ const GATED: Partial<Record<View, string>> = {
 const NEEDS_PIN: Partial<Record<View, string>> = {
   scores: 'Set a PIN first, so test scores stay with parents.',
   prizes: 'Set a PIN first, so only a grown-up can approve chores and give prizes.',
+  settings: 'Set a PIN first, so only a grown-up can delete a kid’s data.',
 };
 
 let current: View = 'onboarding';
@@ -87,10 +89,12 @@ function draw(view: View): void {
     renderPrizes(root!, store, () => show('daily'));
   } else if (view === 'scores') {
     renderScores(root!, store, () => show('daily'));
+  } else if (view === 'settings') {
+    renderSettings(root!, store, () => show('daily'), () => show('onboarding'));
   } else {
     renderDaily(root!, store, () => show('marketplace'), () => show('digest'),
       () => show('addKid'), () => show('rollup'), () => show('setPin'),
-      () => show('groups'), () => show('prizes'), () => show('scores'));
+      () => show('groups'), () => show('prizes'), () => show('scores'), () => show('settings'));
   }
 }
 

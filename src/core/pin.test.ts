@@ -180,6 +180,8 @@ describe('sync claim on the handoff screen', () => {
       async saveRollup() {},
       async loadRollup() { return {}; },
       async loadV1Kids() { return []; },
+      async deleteKidData() {},
+      async deleteFamilyRecord() {},
       async createGroup() {},
       async loadGroup() { return null; },
       async joinGroup() {},

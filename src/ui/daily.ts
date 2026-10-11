@@ -44,14 +44,14 @@ export function renderDaily(
   root: HTMLElement, store: Store,
   onMarketplace: () => void, onDigest?: () => void, onAddKid?: () => void,
   onRollup?: () => void, onSetPin?: () => void, onGroups?: () => void,
-  onPrizes?: () => void, onScores?: () => void,
+  onPrizes?: () => void, onScores?: () => void, onSettings?: () => void,
 ): void {
   const s = store.state;
   const t: TrackState | null = store.activeTrack;
   if (!s || !t) { onMarketplace(); return; }
 
   const rerender = (): void => renderDaily(
-    root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups, onPrizes, onScores,
+    root, store, onMarketplace, onDigest, onAddKid, onRollup, onSetPin, onGroups, onPrizes, onScores, onSettings,
   );
 
   const def = effectiveDef(getTrack(t.trackId), t);
@@ -551,6 +551,13 @@ export function renderDaily(
       ['＋ Add another kid (for parents)']);
     on(addKid, 'click', onAddKid);
     screen.append(addKid);
+  }
+
+  if (onSettings) {
+    const st = el('button', { class: 'btn btn--ghost', type: 'button', style: 'margin-bottom:var(--s-2)' },
+      ['⚙️ Settings & privacy (for parents)']);
+    on(st, 'click', onSettings);
+    screen.append(st);
   }
 
   if (onSetPin) {

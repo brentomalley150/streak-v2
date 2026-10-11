@@ -19,6 +19,8 @@ export const KEYS = {
   v1Legacy2: 'declan-dashboard-v2',
   v1Legacy1: 'declan-dashboard-v1',
   backup: 'summerstreak-profiles-v1-backup',
+  /** Profile ids a parent deleted, so nothing brings them back. */
+  deleted: 'bts-deleted-profiles',
 } as const;
 
 /** v1's activity booleans, in the order they carried points. */
@@ -124,6 +126,8 @@ export function readV1Profiles(ls: Storage): Array<{ id: string; state: any }> {
 export function migrate(ls: Storage): { migrated: number; skipped: number } {
   const existing = safeParse<Profile[]>(ls.getItem(KEYS.profiles)) ?? [];
   const done = new Set(existing.filter((p) => p.schemaVersion === 2).map((p) => p.id));
+  // A kid a parent deleted stays deleted, even with their v1 data still here.
+  for (const id of loadDeleted(ls)) done.add(id);
 
   const v1 = readV1Profiles(ls);
   if (!v1.length) return { migrated: 0, skipped: 0 };
@@ -144,6 +148,15 @@ export function migrate(ls: Storage): { migrated: number; skipped: number } {
   return { migrated, skipped };
 }
 
+export function loadDeleted(ls: Storage): string[] {
+  return safeParse<string[]>(ls.getItem(KEYS.deleted)) ?? [];
+}
+
+export function addDeleted(ls: Storage, id: string): void {
+  const ids = loadDeleted(ls);
+  if (!ids.includes(id)) ls.setItem(KEYS.deleted, JSON.stringify([...ids, id]));
+}
+
 export function loadProfiles(ls: Storage): Profile[] {
   return safeParse<Profile[]>(ls.getItem(KEYS.profiles)) ?? [];
 }
@@ -158,4 +171,8 @@ export function currentProfileId(ls: Storage): string | null {
 
 export function setCurrentProfileId(ls: Storage, id: string): void {
   ls.setItem(KEYS.current, id);
+}
+
+export function clearCurrentProfileId(ls: Storage): void {
+  ls.removeItem(KEYS.current);
 }

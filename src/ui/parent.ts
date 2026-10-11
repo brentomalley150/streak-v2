@@ -311,3 +311,104 @@ export function renderScores(root: HTMLElement, store: Store, back: () => void):
   screen.append(backButton(back));
   root.append(screen);
 }
+
+/* ───────────────────────────── Settings & privacy ───────────────────────── */
+
+/**
+ * "Delete anytime in settings" — the promise the consent screen makes. Each
+ * kid can be deleted on their own, or every kid at once. A delete asks once,
+ * in the page, says exactly what goes, and only reports success when it
+ * happened. `onEmpty` runs when the last kid is gone (back to onboarding).
+ */
+export function renderSettings(root: HTMLElement, store: Store, back: () => void, onEmpty: () => void): void {
+  const redraw = () => renderSettings(root, store, back, onEmpty);
+  clear(root);
+  document.documentElement.dataset['surface'] = 'parent';
+  const screen = el('div', { class: 'screen' });
+  const kids = store.all;
+
+  screen.append(
+    el('div', { class: 'eyebrow' }, ['For parents']),
+    el('h2', {}, ['Settings & privacy']),
+    el('p', {}, ['Beat the Slide stores each kid’s first name, avatar and daily activity — and test scores only if you add them. No ads, never sold. You can delete any of it here, any time.']),
+  );
+
+  const signedOut = store.syncEnabled && !store.user;
+  if (signedOut) {
+    screen.append(el('p', { class: 'muted' }, [
+      'You’re signed out, so a delete here clears this device only. Sign in first to delete what’s synced to your account too.',
+    ]));
+  }
+
+  const finish = (r: 'deleted' | 'device-only' | 'failed', what: string, status: HTMLElement, buttons: HTMLButtonElement[], label: string) => {
+    if (r === 'failed') {
+      status.textContent = 'Couldn’t reach the cloud, so nothing was deleted. Check your connection and try again.';
+      buttons.forEach((b) => { b.disabled = false; });
+      buttons[0]!.textContent = label;
+      return;
+    }
+    toast(r === 'deleted' ? `${what} deleted` : `${what} deleted from this device`);
+    if (!store.hasProfile) { document.documentElement.dataset['surface'] = 'kid'; onEmpty(); } else redraw();
+  };
+
+  /** A delete button that opens an in-page confirmation instead of acting. */
+  const confirmBlock = (opener: string, title: string, lines: string[], doIt: string, act: () => Promise<'deleted' | 'device-only' | 'failed'>, what: string) => {
+    const wrap = el('div', {});
+    const open = el('button', { class: 'btn btn--ghost btn--small', type: 'button' }, [opener]) as HTMLButtonElement;
+    on(open, 'click', () => {
+      clear(wrap);
+      const status = el('p', { class: 'muted', role: 'status', style: 'margin-top:var(--s-2)' }, ['']);
+      const yes = el('button', { class: 'btn btn--danger btn--small', type: 'button' }, [doIt]) as HTMLButtonElement;
+      const no = el('button', { class: 'btn btn--link btn--small', type: 'button' }, ['Cancel']) as HTMLButtonElement;
+      on(no, 'click', redraw);
+      on(yes, 'click', () => {
+        yes.disabled = true; no.disabled = true; yes.textContent = 'Deleting…';
+        void act().then((r) => finish(r, what, status, [yes, no], doIt));
+      });
+      wrap.append(el('div', { class: 'danger-zone', role: 'alertdialog', 'aria-label': title }, [
+        el('div', { style: 'font-weight:800;margin-bottom:var(--s-2)' }, [title]),
+        el('ul', { class: 'evidence' }, lines.map((l) => el('li', {}, [l]))),
+        el('p', { style: 'font-weight:700;color:var(--ink);margin:var(--s-2) 0' }, ['This can’t be undone.']),
+        el('div', { class: 'row' }, [yes, no]),
+        status,
+      ]));
+    });
+    wrap.append(open);
+    return wrap;
+  };
+
+  const list = el('div', { class: 'mod' }, [el('div', { class: 'head' }, ['Delete a kid'])]);
+  for (const p of kids) {
+    const name = p.state.playerName || 'This kid';
+    const tracks = Object.keys(p.state.tracks).map((id) => getTrack(id).name);
+    list.append(el('div', { class: 'prize', style: 'align-items:flex-start;flex-wrap:wrap' }, [
+      el('span', { class: 'prize-ico' }, [p.state.playerAvatar || '\u{1F642}']),
+      el('span', { class: 'grow' }, [
+        el('div', { style: 'font-weight:800' }, [name]),
+        el('div', { class: 'muted' }, [tracks.length ? tracks.join(' · ') : 'No tracks yet']),
+        confirmBlock(`Delete ${name}`, `Delete ${name}?`, [
+          `${name}’s name, avatar, tracks, points, daily log, prizes and any test scores on this device`,
+          ...(signedOut ? [] : [`${name}’s leaderboard rows, weekly history, family summary and challenge memberships in your account`]),
+        ], `Delete ${name}`, () => store.deleteProfile(p.id), `${name}’s data`),
+      ]),
+    ]));
+  }
+  screen.append(list);
+
+  if (kids.length > 1) {
+    screen.append(el('div', { class: 'mod' }, [
+      el('div', { class: 'head' }, ['Delete everything']),
+      el('p', { class: 'muted' }, ['Every kid on this account, at once.']),
+      confirmBlock('Delete every kid', 'Delete every kid?', [
+        `${kids.map((k) => k.state.playerName).join(', ')} — everything above, for each`,
+        ...(signedOut ? [] : ['Your family’s record in your account: the summary and your list of challenges']),
+      ], 'Delete everything', () => store.deleteEverything(), 'Everything'),
+    ]));
+  }
+
+  screen.append(el('p', { class: 'muted' }, [
+    'Challenges you started stay open for the other families in them. SummerStreak (beatthesummerslide.com) keeps its own data and isn’t changed here.',
+  ]));
+  screen.append(backButton(back));
+  root.append(screen);
+}
